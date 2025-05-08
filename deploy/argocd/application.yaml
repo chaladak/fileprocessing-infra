@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:your-org/fileprocessing-gitops.git
+    repoURL: git@github.com:chaladak/fileprocessing-infra.git
     targetRevision: main
     path: deploy/overlays/dev  # Points to the overlay for dev environment
   destination:
