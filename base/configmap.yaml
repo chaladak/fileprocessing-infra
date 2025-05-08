@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fileprocessing-config
+data:
+  postgres-host: "postgres-service"
+  postgres-db: "fileprocessing"
+  rabbitmq-host: "rabbitmq-service"
+  minio-host: "minio-service:9000"
+  storage-path: "/data/files"
+  notification-service-url: "http://notifier-service"
+  api-url: "http://api-service"
