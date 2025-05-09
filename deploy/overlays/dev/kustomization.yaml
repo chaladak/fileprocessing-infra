@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../base
+- ../../base
 
 namespace: fileprocessing-dev
 
@@ -12,72 +12,72 @@ commonLabels:
 # Define all three images for replacement
 images:
 - name: achodak/fileprocessing-api
-  newTag: latest
-- name: achodak/fileprocessing-processor
-  newTag: latest
+  newTag: 27-29d1a7b
 - name: achodak/fileprocessing-notifier
-  newTag: latest
+  newTag: 27-29d1a7b
+- name: achodak/fileprocessing-processor
+  newTag: 27-29d1a7b
 
-patchesJson6902:
 # Scale down replicas for dev environment
-- target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: api
-  path: patches/scale-api-replicas.yaml
-- target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: processor
-  path: patches/scale-processor-replicas.yaml
-- target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: notifier
-  path: patches/scale-notifier-replicas.yaml
 
 # Update the ingress hostname for dev
-- target:
-    group: networking.k8s.io
-    version: v1
-    kind: Ingress
-    name: fileprocessing-ingress
-  path: patches/update-ingress-host.yaml
 
 # Use smaller resource requests and limits in dev
-- target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: api
-  path: patches/update-api-resources.yaml
-- target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: processor
-  path: patches/update-processor-resources.yaml
-- target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: notifier
-  path: patches/update-notifier-resources.yaml
 
 # Add environment variables for dev
-- target:
+patchesJson6902:
+- path: patches/scale-api-replicas.yaml
+  target:
     group: apps
-    version: v1
     kind: Deployment
     name: api
-  path: patches/add-env-vars.yaml
+    version: v1
+- path: patches/scale-processor-replicas.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: processor
+    version: v1
+- path: patches/scale-notifier-replicas.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: notifier
+    version: v1
+- path: patches/update-ingress-host.yaml
+  target:
+    group: networking.k8s.io
+    kind: Ingress
+    name: fileprocessing-ingress
+    version: v1
+- path: patches/update-api-resources.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: api
+    version: v1
+- path: patches/update-processor-resources.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: processor
+    version: v1
+- path: patches/update-notifier-resources.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: notifier
+    version: v1
+- path: patches/add-env-vars.yaml
+  target:
+    group: apps
+    kind: Deployment
+    name: api
+    version: v1
 
 configMapGenerator:
-  - name: app-config
-    literals:
-      - LOG_LEVEL=debug
-      - API_TIMEOUT=30s
-      - RETRY_COUNT=3
+- literals:
+  - LOG_LEVEL=debug
+  - API_TIMEOUT=30s
+  - RETRY_COUNT=3
+  name: app-config
