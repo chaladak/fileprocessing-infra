@@ -6,6 +6,11 @@ metadata:
     app: api
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # How many pods can be created above the desired amount
+      maxUnavailable: 0  # Never have less than the desired amount of pods
   selector:
     matchLabels:
       app: api
