@@ -9,6 +9,15 @@ namespace: fileprocessing-dev
 commonLabels:
   environment: dev
 
+# Define all three images for replacement
+images:
+- name: achodak/fileprocessing-api
+  newTag: latest
+- name: achodak/fileprocessing-processor
+  newTag: latest
+- name: achodak/fileprocessing-notifier
+  newTag: latest
+
 patchesJson6902:
 # Scale down replicas for dev environment
 - target:

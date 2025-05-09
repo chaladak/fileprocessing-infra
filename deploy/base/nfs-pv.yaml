@@ -17,14 +17,12 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fileprocessing-pvc
+  name: nfs-pvc
   namespace: fileprocessing
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteMany  # Important for multiple replicas
   resources:
     requests:
       storage: 10Gi
-  selector:
-    matchLabels:
-      type: nfs
+  storageClassName: nfs
