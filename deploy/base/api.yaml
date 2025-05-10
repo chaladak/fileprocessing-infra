@@ -28,9 +28,6 @@ spec:
           - "export DATABASE_URL=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB && exec uvicorn app:app --host 0.0.0.0 --port 8000"
         ports:
         - containerPort: 8000
-        envFrom:
-        - configMapRef:
-            name: fileprocessing-config
         env:
         - name: POSTGRES_HOST
           valueFrom:
@@ -56,7 +53,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: fileprocessing-config
-              key: s3-endpoint  # Add to ConfigMap
+              key: s3-endpoint
         - name: S3_ACCESS_KEY
           valueFrom:
             secretKeyRef:
@@ -71,9 +68,9 @@ spec:
           valueFrom:
             secretKeyRef:
               name: fileprocessing-secrets
-              key: rabbitmq-url  # Add to Secret
+              key: rabbitmq-url
         - name: NFS_MOUNT_PATH
-          value: "/app/data"  # Matches volumeMount path
+          value: "/app/data"
         volumeMounts:
         - name: shared-data
           mountPath: /app/data
