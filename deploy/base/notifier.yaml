@@ -16,9 +16,15 @@ spec:
     spec:
       containers:
       - name: notifier
-        image: achodak/fileprocessing-notifier:latest  # This will be updated by CI
+        image: achodak/fileprocessing-notifier:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - "export DATABASE_URL=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB && exec python /app/notifier.py"
         ports:
         - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: fileprocessing-config
         env:
         - name: POSTGRES_HOST
           valueFrom:

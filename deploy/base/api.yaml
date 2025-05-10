@@ -24,7 +24,7 @@ spec:
         image: achodak/fileprocessing-api:latest
         command: ["/bin/sh", "-c"]
         args:
-          - "export DATABASE_URL=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB?host=$POSTGRES_HOST && exec uvicorn app:app --host 0.0.0.0 --port 8000"
+          - "export DATABASE_URL=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB && exec uvicorn app:app --host 0.0.0.0 --port 8000"
         ports:
         - containerPort: 8000
         envFrom:
@@ -98,6 +98,6 @@ spec:
   selector:
     app: api
   ports:
-  - port: 80  # External service port
-    targetPort: 8000  # Container port
+  - port: 80
+    targetPort: 8000
   type: ClusterIP
