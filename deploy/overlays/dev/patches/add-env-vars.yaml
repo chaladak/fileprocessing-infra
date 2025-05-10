@@ -48,3 +48,5 @@
         secretKeyRef:
           name: fileprocessing-secrets
           key: rabbitmq-url  
+    - name: NFS_PATH
+      value: "/mnt/nfs_clientshare"
