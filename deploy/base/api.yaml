@@ -65,7 +65,7 @@ spec:
       volumes:
       - name: shared-data
         persistentVolumeClaim:
-          claimName: nfs-pvc  # Using your original PVC name
+          claimName: nfs-pvc-new  # Using your original PVC name
 ---
 apiVersion: v1
 kind: Service
