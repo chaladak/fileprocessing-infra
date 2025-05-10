@@ -5,7 +5,7 @@ metadata:
   labels:
     app: api
 spec:
-  replicas: 1  # Starting with 1 replica to avoid PVC conflicts
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -21,23 +21,40 @@ spec:
     spec:
       containers:
       - name: api
-        image: achodak/fileprocessing-api:latest  # Will be updated through kustomize
+        image: achodak/fileprocessing-api:latest
         ports:
-        - containerPort: 8000  # Using your original port
+        - containerPort: 8000
         envFrom:
         - configMapRef:
-            name: fileprocessing-config  # Using your ArgoCD config name
+            name: fileprocessing-config
         env:
-        - name: MINIO_ACCESS_KEY  # Renamed from S3_ACCESS_KEY
+        - name: MINIO_ACCESS_KEY
           valueFrom:
             secretKeyRef:
               name: fileprocessing-secrets
               key: minio-access-key
-        - name: MINIO_SECRET_KEY  # Renamed from S3_SECRET_KEY
+        - name: MINIO_SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: fileprocessing-secrets
               key: minio-secret-key
+        - name: DATABASE_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/$(POSTGRES_DB)"
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: fileprocessing-config
+              key: postgres-db
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fileprocessing-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fileprocessing-secrets
+              key: postgres-password
         volumeMounts:
         - name: shared-data
           mountPath: /app/data
@@ -51,21 +68,21 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8000  # Updated port
+            port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /health
-            port: 8000  # Updated port
+            port: 8000
           initialDelaySeconds: 15
           periodSeconds: 20
       imagePullSecrets:
-      - name: dockerhub-secret  # Keeping your pull secret
+      - name: dockerhub-secret
       volumes:
       - name: shared-data
         persistentVolumeClaim:
-          claimName: nfs-pvc-new  # Using your original PVC name
+          claimName: nfs-pvc-new
 ---
 apiVersion: v1
 kind: Service
