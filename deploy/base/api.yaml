@@ -22,25 +22,9 @@ spec:
       containers:
       - name: api
         image: achodak/fileprocessing-api:latest
-        command: ["/bin/sh", "-c"]
-        args:
-          - "export DATABASE_URL=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB && exec uvicorn app:app --host 0.0.0.0 --port 8000"
         ports:
         - containerPort: 8000
-        envFrom:
-        - configMapRef:
-            name: fileprocessing-config
         env:
-        - name: MINIO_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: fileprocessing-secrets
-              key: minio-access-key
-        - name: MINIO_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: fileprocessing-secrets
-              key: minio-secret-key
         - name: POSTGRES_HOST
           valueFrom:
             configMapKeyRef:
@@ -61,6 +45,16 @@ spec:
             secretKeyRef:
               name: fileprocessing-secrets
               key: postgres-password
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fileprocessing-secrets
+              key: minio-access-key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fileprocessing-secrets
+              key: minio-secret-key
         volumeMounts:
         - name: shared-data
           mountPath: /app/data
