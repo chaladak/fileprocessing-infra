@@ -3,7 +3,6 @@ kind: Ingress
 metadata:
   name: fileprocessing-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   tls:
@@ -15,6 +14,13 @@ spec:
     http:
       paths:
       - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 80
+      - path: /health
         pathType: Prefix
         backend:
           service:
@@ -34,4 +40,4 @@ spec:
           service:
             name: minio-service
             port:
-              number: 9001  # minio console
+              number: 9001  # MinIO console
