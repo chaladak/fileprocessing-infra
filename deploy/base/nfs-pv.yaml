@@ -10,9 +10,10 @@ spec:
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage-class
   nfs:
-    path: /exported/path
-    server: nfs-server.example.com
+    path: /srv/nfs/share
+    server: 100.80.77.189
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -21,8 +22,11 @@ metadata:
   namespace: fileprocessing
 spec:
   accessModes:
-    - ReadWriteMany  # Important for multiple replicas
+    - ReadWriteMany
   resources:
     requests:
       storage: 10Gi
-  storageClassName: nfs
+  storageClassName: nfs-storage-class
+  selector:
+    matchLabels:
+      type: nfs
