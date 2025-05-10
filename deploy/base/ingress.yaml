@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fileprocessing-ingress
+  namespace: fileprocessing-dev
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
@@ -13,14 +14,28 @@ spec:
   - host: fileprocessing.example.com
     http:
       paths:
-      - path: /api
+      - path: /health
         pathType: Prefix
         backend:
           service:
             name: api-service
             port:
               number: 80
-      - path: /health
+      - path: /upload
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 80
+      - path: /status
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 80
+      - path: /docs
         pathType: Prefix
         backend:
           service:
@@ -40,4 +55,4 @@ spec:
           service:
             name: minio-service
             port:
-              number: 9001  # MinIO console
+              number: 9001
