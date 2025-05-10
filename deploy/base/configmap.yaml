@@ -10,3 +10,4 @@ data:
   storage-path: "/data/files"
   notification-service-url: "http://notifier-service"
   api-url: "http://api-service"
+  s3-endpoint: "http://minio-service:9000"
