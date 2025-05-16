@@ -12,11 +12,11 @@ commonLabels:
 # Define all three images for replacement
 images:
 - name: achodak/fileprocessing-api
-  newTag: 66-a6ffbcf
+  newTag: 67-4863fc7
 - name: achodak/fileprocessing-notifier
-  newTag: 66-a6ffbcf
+  newTag: 67-4863fc7
 - name: achodak/fileprocessing-processor
-  newTag: 66-a6ffbcf
+  newTag: 67-4863fc7
 
 # Scale down replicas for dev environment
 
