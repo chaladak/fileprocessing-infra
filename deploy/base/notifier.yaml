@@ -19,7 +19,7 @@ spec:
         image: achodak/fileprocessing-notifier:latest
         command: ["/bin/sh", "-c"]
         args:
-          - "export DATABASE_URL=postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB && exec python /app/notifier.py"
+          - "export NFS_PATH=$NFS_MOUNT_PATH && exec uvicorn app:app --host 0.0.0.0 --port 8000"
         ports:
         - containerPort: 8000
         envFrom:
@@ -50,7 +50,9 @@ spec:
           valueFrom:
             secretKeyRef:
               name: fileprocessing-secrets
-              key: rabbitmq-url 
+              key: rabbitmq-url
+        - name: DATABASE_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/$(POSTGRES_DB)" 
         resources:
           limits:
             cpu: "300m"
