@@ -17,11 +17,8 @@ spec:
       containers:
       - name: notifier
         image: achodak/fileprocessing-notifier:latest
-        command: ["/bin/sh", "-c"]
-        args:
-          - "export NFS_PATH=$NFS_MOUNT_PATH && exec uvicorn app:app --host 0.0.0.0 --port 8000"
-        ports:
-        - containerPort: 8000
+        # Remove the command and args - let it use the CMD from Dockerfile
+        # which is ["python", "notifier.py"]
         envFrom:
         - configMapRef:
             name: fileprocessing-config
@@ -52,7 +49,9 @@ spec:
               name: fileprocessing-secrets
               key: rabbitmq-url
         - name: DATABASE_URL
-          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/$(POSTGRES_DB)" 
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/$(POSTGRES_DB)"
+        - name: NFS_PATH
+          value: "$(NFS_MOUNT_PATH)"
         resources:
           limits:
             cpu: "300m"
