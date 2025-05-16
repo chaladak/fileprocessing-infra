@@ -76,6 +76,8 @@ spec:
               key: notification-service-url
         - name: NFS_PATH
           value: "/mnt/nfs_clientshare"
+        - name: DATABASE_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/$(POSTGRES_DB)"
         volumeMounts:
         - name: shared-data
           mountPath: /mnt/nfs_clientshare
