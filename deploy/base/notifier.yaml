@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notifier
+  namespace: fileprocessing-dev
   labels:
     app: notifier
 spec:
@@ -17,11 +18,7 @@ spec:
       containers:
       - name: notifier
         image: achodak/fileprocessing-notifier:latest
-        # Remove the command and args - let it use the CMD from Dockerfile
-        # which is ["python", "notifier.py"]
-        envFrom:
-        - configMapRef:
-            name: fileprocessing-config
+        # Using the CMD in Dockerfile: ["python", "notifier.py"]
         env:
         - name: POSTGRES_HOST
           valueFrom:
@@ -43,15 +40,23 @@ spec:
             secretKeyRef:
               name: fileprocessing-secrets
               key: postgres-password
-        - name: RABBITMQ_URL
+        - name: RABBITMQ_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: fileprocessing-config
+              key: rabbitmq-host
+        - name: RABBITMQ_USER
           valueFrom:
             secretKeyRef:
               name: fileprocessing-secrets
-              key: rabbitmq-url
+              key: rabbitmq-user
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fileprocessing-secrets
+              key: rabbitmq-password
         - name: DATABASE_URL
           value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/$(POSTGRES_DB)"
-        - name: NFS_PATH
-          value: "$(NFS_MOUNT_PATH)"
         resources:
           limits:
             cpu: "300m"
