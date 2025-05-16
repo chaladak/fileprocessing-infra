@@ -78,7 +78,7 @@ spec:
           value: "/mnt/nfs_clientshare"
         volumeMounts:
         - name: shared-data
-          mountPath: /app/data
+          mountPath: /mnt/nfs_clientshare
         resources:
           limits:
             cpu: "1"
