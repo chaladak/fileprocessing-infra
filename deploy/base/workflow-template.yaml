@@ -3,6 +3,7 @@ kind: Workflow
 metadata:
   generateName: build-and-deploy-
 spec:
+  serviceAccountName: argo
   entrypoint: build-and-deploy
   templates:
   - name: build-and-deploy
@@ -67,7 +68,7 @@ spec:
       parameters:
       - name: tag
     container:
-      image: docker:20.10.7-cli
+      image: docker:20.10.7
       command: [sh, -c]
       args:
         - |
@@ -90,7 +91,7 @@ spec:
           docker push $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}}
 
   # Update kustomize manifests and push changes
-  - name: update-infrastructure
+  - name: update-kustomize
     inputs:
       parameters:
       - name: tag
