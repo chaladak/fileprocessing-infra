@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: build-and-deploy
+  namespace: argo
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+    - name: tag
+      value: "latest"  # This will be overridden by Argo Events
+  templates:
+  - name: main
+    steps:
+    - - name: build-api
+        template: build
+        arguments:
+          parameters:
+          - name: service
+            value: api_service
+      - name: build-notifier
+        template: build
+        arguments:
+          parameters:
+          - name: service
+            value: notification_service
+      - name: build-processor
+        template: build
+        arguments:
+          parameters:
+          - name: service
+            value: processor_service
+    - - name: update-manifests
+        template: update
+  - name: build
+    inputs:
+      parameters:
+      - name: service
+    container:
+      image: gcr.io/kaniko-project/executor:latest
+      args:
+      - --context=git://github.com/your-org/fileprocessing-app.git#refs/heads/main
+      - --dockerfile={{inputs.parameters.service}}/Dockerfile
+      - --destination=your-registry/{{inputs.parameters.service}}:{{workflow.parameters.tag}}
+      # Add registry credentials if required (e.g., via --build-arg or secret)
+  - name: update
+    container:
+      image: mikefarah/yq:4  # Includes yq and git
+      command: [sh, -c]
+      args:
+      - |
+        apk add git
+        git clone https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/your-org/fileprocessing-infra.git
+        cd fileprocessing-infra
+        yq e '.spec.template.spec.containers[0].image = "your-registry/api_service:{{workflow.parameters.tag}}"' -i deploy/base/api.yaml
+        yq e '.spec.template.spec.containers[0].image = "your-registry/notification_service:{{workflow.parameters.tag}}"' -i deploy/base/notifier.yaml
+        yq e '.spec.template.spec.containers[0].image = "your-registry/processor_service:{{workflow.parameters.tag}}"' -i deploy/base/processor.yaml
+        git config --global user.email "argo@workflow.com"
+        git config --global user.name "Argo Workflow"
+        git commit -am "Update image tags to {{workflow.parameters.tag}}"
+        git push
+      env:
+      - name: GIT_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: git-credentials
+            key: username
+      - name: GIT_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: git-credentials
+            key: token
