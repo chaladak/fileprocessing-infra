@@ -5,6 +5,8 @@ metadata:
 spec:
   serviceAccountName: argo
   entrypoint: build-and-deploy
+  imagePullSecrets:                     # Use this to pull private images (if needed)
+  - name: docker-credentials
   templates:
   - name: build-and-deploy
     steps:
@@ -30,11 +32,15 @@ spec:
 
     - - name: update-kustomize-overlays
         template: update-kustomize
+        arguments:
+          parameters:
+          - name: tag
+            value: "{{workflow.uid}}"
 
     - - name: trigger-argocd-sync
         template: argocd-sync
 
-  # Clone your source repo
+# Clone your source repo
   - name: git-clone
     container:
       image: alpine/git
@@ -45,7 +51,7 @@ spec:
   # Docker login step
   - name: docker-login
     container:
-      image: docker:20.10.7-cli
+      image: docker:20.10.7
       command: [sh, -c]
       env:
       - name: DOCKER_USERNAME
@@ -70,6 +76,17 @@ spec:
     container:
       image: docker:20.10.7
       command: [sh, -c]
+      env:
+      - name: DOCKER_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: docker-credentials
+            key: docker-username
+      - name: DOCKER_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: docker-credentials
+            key: docker-password
       args:
         - |
           docker build -t $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}} ./api_service
@@ -82,7 +99,7 @@ spec:
       parameters:
       - name: tag
     container:
-      image: docker:20.10.7-cli
+      image: docker:20.10.7
       command: [sh, -c]
       args:
         - |
@@ -127,7 +144,7 @@ spec:
   
   - name: argocd-sync
     container:
-      image: argoproj/argocd-cli:v2.5.7
+      image: argoproj/argocd:v2.5.7
       command: ["argocd"]
       args: ["app", "sync", "fileprocessing-app"]
       env:
