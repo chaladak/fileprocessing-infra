@@ -5,6 +5,7 @@ metadata:
   namespace: fileprocessing-dev
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
   tls:
   - hosts:
@@ -56,3 +57,10 @@ spec:
             name: minio-service
             port:
               number: 9001
+      - path: /argo
+        pathType: Prefix
+        backend:
+          service:
+            name: argo-server
+            port:
+              number: 2746

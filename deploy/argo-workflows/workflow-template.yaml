@@ -1,0 +1,139 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: build-and-deploy-
+spec:
+  entrypoint: build-and-deploy
+  templates:
+  - name: build-and-deploy
+    steps:
+    - - name: checkout-code
+        template: git-clone
+
+    - - name: docker-login
+        template: docker-login
+
+    - - name: build-images
+        template: docker-build
+        arguments:
+          parameters:
+          - name: tag
+            value: "{{workflow.uid}}"
+
+    - - name: push-images
+        template: docker-push
+        arguments:
+          parameters:
+          - name: tag
+            value: "{{workflow.uid}}"
+
+    - - name: update-kustomize-overlays
+        template: update-kustomize
+
+    - - name: trigger-argocd-sync
+        template: argocd-sync
+
+  # Clone your source repo
+  - name: git-clone
+    container:
+      image: alpine/git
+      command: [sh, -c]
+      args:
+        - git clone https://github.com/chaladak/fileprocessing-app.git
+
+  # Docker login step
+  - name: docker-login
+    container:
+      image: docker:20.10.7-cli
+      command: [sh, -c]
+      env:
+      - name: DOCKER_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: docker-credentials
+            key: docker-username
+      - name: DOCKER_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: docker-credentials
+            key: docker-password
+      args:
+        - |
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+
+  # Build Docker images
+  - name: docker-build
+    inputs:
+      parameters:
+      - name: tag
+    container:
+      image: docker:20.10.7-cli
+      command: [sh, -c]
+      args:
+        - |
+          docker build -t $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}} ./api_service
+          docker build -t $DOCKER_USERNAME/fileprocessing-processor:{{inputs.parameters.tag}} ./processor_service
+          docker build -t $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}} ./notification_service
+
+  # Push Docker images
+  - name: docker-push
+    inputs:
+      parameters:
+      - name: tag
+    container:
+      image: docker:20.10.7-cli
+      command: [sh, -c]
+      args:
+        - |
+          docker push $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}}
+          docker push $DOCKER_USERNAME/fileprocessing-processor:{{inputs.parameters.tag}}
+          docker push $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}}
+
+  # Update kustomize manifests and push changes
+  - name: update-infrastructure
+    inputs:
+      parameters:
+      - name: tag
+    container:
+      image: alpine/git
+      command: [sh, -c]
+      env:
+      - name: GIT_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: fileprocessing-secrets
+            key: username
+      - name: GIT_EMAIL
+        valueFrom:
+          secretKeyRef:
+            name: fileprocessing-secrets
+            key: email
+      args:
+        - |
+          apk add --no-cache kustomize
+          apk add --no-cache curl
+          apk add --no-cache git
+          git clone git@github.com:$GIT_USERNAME/fileprocessing-infra.git /infra
+          cd /infra/deploy/overlays/dev
+          git config user.name $GIT_USERNAME
+          git config user.email $GIT_EMAIL
+          kustomize edit set image $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}}
+          kustomize edit set image $DOCKER_USERNAME/fileprocessing-processor:{{inputs.parameters.tag}}
+          kustomize edit set image $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}}
+          git add kustomization.yaml
+          git commit -m "Update image tags to {{inputs.parameters.tag}}" || exit 0
+          git push origin main
+  
+  - name: argocd-sync
+    container:
+      image: argoproj/argocd-cli:v2.5.7
+      command: ["argocd"]
+      args: ["app", "sync", "fileprocessing-app"]
+      env:
+      - name: ARGOCD_SERVER
+        value: argocd-server.yourdomain.com
+      - name: ARGOCD_AUTH_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: argocd-auth
+            key: token
