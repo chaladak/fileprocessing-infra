@@ -5,31 +5,52 @@ metadata:
 spec:
   serviceAccountName: argo
   entrypoint: build-and-deploy
-  imagePullSecrets:                     # Use this to pull private images (if needed)
+  imagePullSecrets:
   - name: docker-credentials
+  arguments:
+    parameters:
+    - name: docker-username
+      value: "achodak"
+    - name: git-repo
+      value: "https://github.com/chaladak/fileprocessing-app.git"
   templates:
   - name: build-and-deploy
     steps:
-    - - name: checkout-code
-        template: git-clone
-
-    - - name: docker-login
-        template: docker-login
-
-    - - name: build-images
+    # Build all services in parallel
+    - - name: build-api-service
         template: docker-build
         arguments:
           parameters:
+          - name: service-path
+            value: "api_service"
+          - name: image-name
+            value: "fileprocessing-api"
           - name: tag
             value: "{{workflow.uid}}"
 
-    - - name: push-images
-        template: docker-push
+      - name: build-processor-service
+        template: docker-build
         arguments:
           parameters:
+          - name: service-path
+            value: "processor_service"
+          - name: image-name
+            value: "fileprocessing-processor"
           - name: tag
             value: "{{workflow.uid}}"
 
+      - name: build-notification-service
+        template: docker-build
+        arguments:
+          parameters:
+          - name: service-path
+            value: "notification_service"
+          - name: image-name
+            value: "fileprocessing-notifier"
+          - name: tag
+            value: "{{workflow.uid}}"
+
+    # Update deployment manifests
     - - name: update-kustomize-overlays
         template: update-kustomize
         arguments:
@@ -37,75 +58,107 @@ spec:
           - name: tag
             value: "{{workflow.uid}}"
 
+    # Sync with ArgoCD
     - - name: trigger-argocd-sync
         template: argocd-sync
 
-# Clone your source repo
-  - name: git-clone
-    container:
-      image: alpine/git
-      command: [sh, -c]
-      args:
-        - git clone https://github.com/chaladak/fileprocessing-app.git
-
-  # Docker login step
-  - name: docker-login
-    container:
-      image: docker:20.10.7
-      command: [sh, -c]
-      env:
-      - name: DOCKER_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: docker-credentials
-            key: docker-username
-      - name: DOCKER_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: docker-credentials
-            key: docker-password
-      args:
-        - |
-          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-
-  # Build Docker images
+  # Docker build template
   - name: docker-build
     inputs:
       parameters:
+      - name: service-path
+      - name: image-name
       - name: tag
     container:
-      image: docker:20.10.7
+      image: docker:20.10.7-dind
       command: [sh, -c]
       env:
       - name: DOCKER_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: docker-credentials
-            key: docker-username
+        value: "{{workflow.parameters.docker-username}}"
       - name: DOCKER_PASSWORD
         valueFrom:
           secretKeyRef:
             name: docker-credentials
             key: docker-password
+      - name: DOCKER_BUILDKIT
+        value: "1"
+      - name: BUILDKIT_PROGRESS
+        value: "plain"
       args:
         - |
-          docker build -t $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}} ./api_service
-          docker build -t $DOCKER_USERNAME/fileprocessing-processor:{{inputs.parameters.tag}} ./processor_service
-          docker build -t $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}} ./notification_service
-
-  # Push Docker images
-  - name: docker-push
-    inputs:
-      parameters:
-      - name: tag
-    container:
-      image: docker:20.10.7
-      command: [sh, -c]
-      args:
-        - |
-          docker push $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}}
-          docker push $DOCKER_USERNAME/fileprocessing-processor:{{inputs.parameters.tag}}
-          docker push $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}}
+          set -e  # Exit on error
+          
+          # Start Docker daemon with optimized settings
+          dockerd \
+            --host=unix:///var/run/docker.sock \
+            --default-ulimit nofile=65536:65536 \
+            --max-concurrent-downloads 3 \
+            --max-concurrent-uploads 3 &
+          
+          # Wait for Docker daemon to start
+          timeout=60
+          while ! docker info >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "Docker daemon failed to start"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout-2))
+          done
+          
+          echo "Docker daemon started successfully"
+          
+          # Install git
+          apk add --no-cache git
+          
+          # Clone repository
+          echo "Cloning repository..."
+          git clone {{workflow.parameters.git-repo}} /workspace
+          cd /workspace
+          
+          # Verify service directory exists
+          if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
+            echo "Error: Service directory ./{{inputs.parameters.service-path}} not found"
+            ls -la
+            exit 1
+          fi
+          
+          # Verify Dockerfile exists
+          if [ ! -f "./{{inputs.parameters.service-path}}/Dockerfile" ]; then
+            echo "Error: Dockerfile not found in ./{{inputs.parameters.service-path}}"
+            ls -la ./{{inputs.parameters.service-path}}/
+            exit 1
+          fi
+          
+          # Login to Docker Hub
+          echo "Logging into Docker Hub..."
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+          
+          # Build image
+          echo "Building image for {{inputs.parameters.service-path}}..."
+          docker build \
+            --no-cache \
+            --progress=plain \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}} \
+            -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest \
+            ./{{inputs.parameters.service-path}}
+          
+          # Push images
+          echo "Pushing images..."
+          docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}}
+          docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest
+          
+          echo "Build and push completed successfully"
+      securityContext:
+        privileged: true
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1000m"
+        limits:
+          memory: "4Gi"
+          cpu: "2000m"
 
   # Update kustomize manifests and push changes
   - name: update-kustomize
@@ -126,30 +179,51 @@ spec:
           secretKeyRef:
             name: fileprocessing-secrets
             key: email
+      - name: GIT_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: fileprocessing-secrets
+            key: token  # store a GitHub PAT here
+      - name: DOCKER_USERNAME
+        value: "{{workflow.parameters.docker-username}}"
       args:
         - |
-          apk add --no-cache kustomize
-          apk add --no-cache curl
-          apk add --no-cache git
-          git clone git@github.com:$GIT_USERNAME/fileprocessing-infra.git /infra
+          apk add --no-cache curl git openssh-client tar wget grep
+
+          # Install kustomize (correct arch)
+          KUSTOMIZE_VERSION=v5.6.0
+          wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz
+          tar -zxvf kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz
+          mv kustomize /usr/local/bin/
+          chmod +x /usr/local/bin/kustomize
+
+          # Setup Git
+          git config --global user.name "$GIT_USERNAME"
+          git config --global user.email "$GIT_EMAIL"
+
+          # Clone using HTTPS with token
+          git clone https://$GIT_USERNAME:$GIT_TOKEN@github.com/$GIT_USERNAME/fileprocessing-infra.git /infra
           cd /infra/deploy/overlays/dev
-          git config user.name $GIT_USERNAME
-          git config user.email $GIT_EMAIL
+
+          # Update image tags
           kustomize edit set image $DOCKER_USERNAME/fileprocessing-api:{{inputs.parameters.tag}}
           kustomize edit set image $DOCKER_USERNAME/fileprocessing-processor:{{inputs.parameters.tag}}
           kustomize edit set image $DOCKER_USERNAME/fileprocessing-notifier:{{inputs.parameters.tag}}
+
+          # Commit and push
           git add kustomization.yaml
-          git commit -m "Update image tags to {{inputs.parameters.tag}}" || exit 0
+          git commit -m "Update image tags to {{inputs.parameters.tag}}" || echo "No changes to commit"
           git push origin main
   
+  # Trigger ArgoCD sync
   - name: argocd-sync
     container:
       image: argoproj/argocd:v2.5.7
       command: ["argocd"]
-      args: ["app", "sync", "fileprocessing-app"]
+      args: ["app", "sync", "fileprocessing-app", "--prune"]
       env:
       - name: ARGOCD_SERVER
-        value: argocd-server.yourdomain.com
+        value: "argocd-server.yourdomain.com"
       - name: ARGOCD_AUTH_TOKEN
         valueFrom:
           secretKeyRef:
