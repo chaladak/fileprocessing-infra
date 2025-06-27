@@ -1,7 +1,8 @@
 apiVersion: argoproj.io/v1alpha1
-kind: Workflow
+kind: WorkflowTemplate
 metadata:
-  generateName: build-and-deploy-
+  name: build-and-deploy-template
+  namespace: default
 spec:
   serviceAccountName: argo
   entrypoint: build-and-deploy
@@ -17,6 +18,11 @@ spec:
       value: "https://github.com/chaladak/fileprocessing-infra.git"
     - name: infra-git-branch
       value: "main"
+    # New parameters from webhook
+    - name: git-commit
+      value: "latest"
+    - name: git-branch
+      value: "refs/heads/main"
   templates:
   - name: build-and-deploy
     steps:
@@ -110,10 +116,16 @@ spec:
         # Install git
         apk add --no-cache git
         
-        # Clone app repository
+        # Clone app repository (use specific commit if provided)
         echo "Cloning app repository..."
         git clone {{workflow.parameters.app-git-repo}} /workspace
         cd /workspace
+        
+        # Checkout specific commit if provided from webhook
+        if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
+          echo "Checking out commit: {{workflow.parameters.git-commit}}"
+          git checkout {{workflow.parameters.git-commit}}
+        fi
         
         # Verify service directory
         if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
@@ -202,5 +214,5 @@ spec:
           
           # Commit changes
           git add .
-          git commit -m "Update image tags to {{workflow.uid}}"
+          git commit -m "Update image tags to {{workflow.uid}} - triggered by commit {{workflow.parameters.git-commit}}"
           git push origin {{workflow.parameters.infra-git-branch}}

@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: fileprocessing-workflow-sensor
+  namespace: argo-events
+spec:
+  dependencies:
+    - name: github-dep
+      eventSourceName: fileprocessing-webhook
+      eventName: github-webhook
+      filters:
+        data:
+          # Filter for pushes to main branch
+          - path: body.ref
+            type: string
+            value:
+              - "refs/heads/main"
+          # Filter for your app repository
+          - path: body.repository.name
+            type: string
+            value:
+              - "fileprocessing-app"
+  triggers:
+    - template:
+        name: workflow-trigger
+        argoWorkflow:
+          operation: submit
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: "build-and-deploy-"
+                namespace: default
+              spec:
+                workflowTemplateRef:
+                  name: build-and-deploy-template
+                arguments:
+                  parameters:
+                    # Keep your existing parameters
+                    - name: docker-username
+                      value: "achodak"
+                    - name: app-git-repo
+                      value: "https://github.com/chaladak/fileprocessing-app.git"
+                    - name: infra-git-repo
+                      value: "https://github.com/chaladak/fileprocessing-infra.git"
+                    - name: infra-git-branch
+                      value: "main"
+                    # Add webhook-specific parameters
+                    - name: git-commit
+                      value: "{{.Input.body.head_commit.id}}"
+                    - name: git-branch
+                      value: "{{.Input.body.ref}}"
