@@ -10,12 +10,10 @@ spec:
       eventName: github-webhook
       filters:
         data:
-          # Filter for pushes to main branch
           - path: body.ref
             type: string
             value:
               - "refs/heads/main"
-          # Filter for your app repository
           - path: body.repository.name
             type: string
             value:
@@ -37,7 +35,6 @@ spec:
                   name: build-and-deploy-template
                 arguments:
                   parameters:
-                    # Keep your existing parameters
                     - name: docker-username
                       value: "achodak"
                     - name: app-git-repo
@@ -46,7 +43,6 @@ spec:
                       value: "https://github.com/chaladak/fileprocessing-infra.git"
                     - name: infra-git-branch
                       value: "main"
-                    # Add webhook-specific parameters
                     - name: git-commit
                       value: "{{.Input.body.head_commit.id}}"
                     - name: git-branch
