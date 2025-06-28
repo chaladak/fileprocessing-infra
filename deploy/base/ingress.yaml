@@ -64,10 +64,3 @@ spec:
             name: argo-server
             port:
               number: 2746
-      - path: /fileprocessing-push
-        pathType: Prefix
-        backend:
-          service:
-            name: fileprocessing-webhook-eventsource-svc
-            port:
-              number: 12000

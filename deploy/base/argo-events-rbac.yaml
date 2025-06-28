@@ -4,27 +4,30 @@ metadata:
   name: argo-events-sa
   namespace: argo-events
 ---
+# ClusterRole for Argo Events to access WorkflowTemplates
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: argo-events-role
+  name: argo-events-workflow-access
 rules:
 - apiGroups: ["argoproj.io"]
-  resources: ["workflows", "workflowtemplates"]
-  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  resources: ["workflowtemplates", "workflows"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
 - apiGroups: [""]
   resources: ["events"]
-  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  verbs: ["create", "patch"]
+
 ---
+# ClusterRoleBinding to bind the role to the service account
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: argo-events-binding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argo-events-role
+  name: argo-events-workflow-binding
 subjects:
 - kind: ServiceAccount
   name: argo-events-sa
   namespace: argo-events
+roleRef:
+  kind: ClusterRole
+  name: argo-events-workflow-access
+  apiGroup: rbac.authorization.k8s.io
