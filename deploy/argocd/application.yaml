@@ -6,15 +6,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:chaladak/fileprocessing-infra.git
-    targetRevision: main
-    path: deploy/overlays/dev  # Points to the overlay for dev environment
+    repoURL: https://github.com/chladak/fileprocessing-infra.git
+    targetRevision: HEAD
+    path: deploy/overlays/dev
   destination:
     server: https://kubernetes.default.svc
-    namespace: fileprocessing-dev
+    namespace: argocd # Neutral namespace; resources will use their own namespaces
   syncPolicy:
     automated:
       prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
