@@ -9,7 +9,6 @@ spec:
       port: "12000"
       endpoint: /fileprocessing-push
       method: POST
-      # Optional: Add webhook secret for security
-      # webhookSecret:
-      #   name: github-webhook-secret
-      #   key: secret
+      webhookSecret:
+        name: github-webhook-secret
+        key: secret
