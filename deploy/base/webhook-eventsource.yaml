@@ -4,6 +4,11 @@ metadata:
   name: fileprocessing-webhook
   namespace: argo-events
 spec:
+  serviceAccountName: argo-events-sa
+  service:
+    ports:
+      - port: 12000
+        targetPort: 12000
   webhook:
     github-webhook:
       port: "12000"
