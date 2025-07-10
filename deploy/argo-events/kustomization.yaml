@@ -8,7 +8,5 @@ resources:
   - webhook-eventsource.yaml
   - workflow-sensor.yaml
   - webhook-ingress.yaml
-  - clusterissuer.yaml
-  - certificate.yaml
 
 namespace: argo-events
