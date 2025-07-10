@@ -17,6 +17,7 @@ resources:
 - workflow-sensor.yaml
 - webhook-eventsource.yaml
 - argo-events-rbac.yaml
+- eventbus.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: fileprocessing
