@@ -3,6 +3,7 @@ kind: ServiceAccount
 metadata:
   name: argo-events-sa
   namespace: argo-events
+
 ---
 # ClusterRole for Argo Events to access WorkflowTemplates
 apiVersion: rbac.authorization.k8s.io/v1
@@ -16,6 +17,9 @@ rules:
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
 
 ---
 # ClusterRoleBinding to bind the role to the service account

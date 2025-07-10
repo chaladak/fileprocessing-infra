@@ -30,7 +30,7 @@ spec:
               kind: Workflow
               metadata:
                 generateName: "build-and-deploy-"
-                namespace: default
+                namespace: fileprocessing-dev  # Changed from default
               spec:
                 workflowTemplateRef:
                   name: build-and-deploy-template

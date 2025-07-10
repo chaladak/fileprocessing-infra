@@ -13,9 +13,9 @@ spec:
   tls:
   - hosts:
     - fileprocessing.example.com
-    secretName: fileprocessing-webhook-tls  # cert-manager will create this automatically
+    secretName: fileprocessing-webhook-tls
   rules:
-  - host: fileprocessing.example.com  # Use the working domain
+  - host: fileprocessing.example.com
     http:
       paths:
       - path: /fileprocessing-push
