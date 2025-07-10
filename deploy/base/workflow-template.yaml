@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
   name: build-and-deploy-template
-  namespace: default
+  namespace: argo
 spec:
   serviceAccountName: argo
   entrypoint: build-and-deploy
