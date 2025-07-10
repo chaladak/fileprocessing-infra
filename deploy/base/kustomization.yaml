@@ -13,6 +13,10 @@ resources:
 - processor.yaml
 - notifier.yaml
 - ingress.yaml
+- workflow-template.yaml
+- workflow-sensor.yaml
+- webhook-eventsource.yaml
+- argo-events-rbac.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: fileprocessing
