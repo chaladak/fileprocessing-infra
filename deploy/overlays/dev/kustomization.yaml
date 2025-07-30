@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - ../../base
+- ../../base/workflows
 
 namespace: fileprocessing-dev
 
