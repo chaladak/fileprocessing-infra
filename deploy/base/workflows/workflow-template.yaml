@@ -198,10 +198,8 @@ spec:
       args:
       - |
         set -e
-        # Install git and dependencies using apt-get (Debian-based image)
-        apt-get update && apt-get install -y git
-        # Install SQLite for in-memory database
-        apt-get install -y sqlite3 libsqlite3-dev
+        # Install git and SQLite dependencies using apt-get (Debian-based image)
+        apt-get update && apt-get install -y git sqlite3 libsqlite3-dev
         echo "Cloning app repository..."
         git clone {{workflow.parameters.app-git-repo}} /workspace
         cd /workspace
@@ -230,8 +228,8 @@ spec:
         if [ -f "{{inputs.parameters.service-path}}/tests/requirements.txt" ]; then
           pip install -r {{inputs.parameters.service-path}}/tests/requirements.txt
         fi
-        # Ensure pytest and pytest dependencies are installed
-        pip install pytest pytest-mock
+        # Ensure pytest and dependencies are installed
+        pip install pytest pytest-mock sqlalchemy>=2.0
         echo "Running tests for {{inputs.parameters.service-path}}..."
         pytest {{inputs.parameters.service-path}}/tests/{{inputs.parameters.test-file}} --verbose
         echo "Tests completed successfully"
