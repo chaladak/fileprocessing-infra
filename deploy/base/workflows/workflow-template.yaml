@@ -183,11 +183,25 @@ spec:
       env:
       - name: PYTHONPATH
         value: "/workspace"
+      - name: POSTGRES_USER
+        value: "test"
+      - name: POSTGRES_PASSWORD
+        value: "test"
+      - name: POSTGRES_HOST
+        value: "localhost"
+      - name: POSTGRES_DB
+        value: "test"
+      - name: RABBITMQ_URL
+        value: "amqp://guest:guest@localhost:5672/%2F"
+      - name: TESTING
+        value: "true"
       args:
       - |
         set -e
-        # Install git using apt-get (Debian-based image)
+        # Install git and dependencies using apt-get (Debian-based image)
         apt-get update && apt-get install -y git
+        # Install SQLite for in-memory database
+        apt-get install -y sqlite3 libsqlite3-dev
         echo "Cloning app repository..."
         git clone {{workflow.parameters.app-git-repo}} /workspace
         cd /workspace
@@ -208,10 +222,16 @@ spec:
         cd /workspace
         python -m venv venv
         . venv/bin/activate
+        # Install requirements for the service
         if [ -f "{{inputs.parameters.service-path}}/requirements.txt" ]; then
           pip install -r {{inputs.parameters.service-path}}/requirements.txt
         fi
-        pip install pytest
+        # Install test-specific requirements if available
+        if [ -f "{{inputs.parameters.service-path}}/tests/requirements.txt" ]; then
+          pip install -r {{inputs.parameters.service-path}}/tests/requirements.txt
+        fi
+        # Ensure pytest and pytest dependencies are installed
+        pip install pytest pytest-mock
         echo "Running tests for {{inputs.parameters.service-path}}..."
         pytest {{inputs.parameters.service-path}}/tests/{{inputs.parameters.test-file}} --verbose
         echo "Tests completed successfully"
