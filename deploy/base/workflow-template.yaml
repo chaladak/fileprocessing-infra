@@ -207,7 +207,7 @@ spec:
         fi
         cd /workspace
         python -m venv venv
-        source venv/bin/activate
+        . venv/bin/activate
         if [ -f "{{inputs.parameters.service-path}}/requirements.txt" ]; then
           pip install -r {{inputs.parameters.service-path}}/requirements.txt
         fi
