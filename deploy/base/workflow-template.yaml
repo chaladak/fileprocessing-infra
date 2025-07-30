@@ -18,7 +18,6 @@ spec:
       value: "https://github.com/chaladak/fileprocessing-infra.git"
     - name: infra-git-branch
       value: "main"
-    # New parameters from webhook
     - name: git-commit
       value: "latest"
     - name: git-branch
@@ -57,6 +56,31 @@ spec:
             value: "fileprocessing-notifier"
           - name: tag
             value: "{{workflow.uid}}"
+    # Run tests for all services in parallel
+    - - name: test-api-service
+        template: run-tests
+        arguments:
+          parameters:
+          - name: service-path
+            value: "api_service"
+          - name: test-file
+            value: "test_api.py" # Adjust if the file name differs
+      - name: test-processor-service
+        template: run-tests
+        arguments:
+          parameters:
+          - name: service-path
+            value: "processor_service"
+          - name: test-file
+            value: "test_processor.py" # Adjust if the file name differs
+      - name: test-notification-service
+        template: run-tests
+        arguments:
+          parameters:
+          - name: service-path
+            value: "notification_service"
+          - name: test-file
+            value: "test_notifier.py" # Matches your example
     # Update infra repository and trigger Argo CD sync
     - - name: update-infra-and-sync
         template: update-infra
@@ -92,14 +116,12 @@ spec:
       args:
       - |
         set -e
-        
         # Start Docker daemon
         dockerd \
           --host=unix:///var/run/docker.sock \
           --default-ulimit nofile=65536:65536 \
           --max-concurrent-downloads 3 \
           --max-concurrent-uploads 3 &
-        
         # Wait for Docker daemon
         timeout=60
         while ! docker info >/dev/null 2>&1; do
@@ -110,41 +132,33 @@ spec:
           sleep 2
           timeout=$((timeout-2))
         done
-        
         echo "Docker daemon started successfully"
-        
         # Install git
         apk add --no-cache git
-        
-        # Clone app repository (use specific commit if provided)
+        # Clone app repository
         echo "Cloning app repository..."
         git clone {{workflow.parameters.app-git-repo}} /workspace
         cd /workspace
-        
-        # Checkout specific commit if provided from webhook
+        # Checkout specific commit if provided
         if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
           echo "Checking out commit: {{workflow.parameters.git-commit}}"
           git checkout {{workflow.parameters.git-commit}}
         fi
-        
         # Verify service directory
         if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
           echo "Error: Service directory ./{{inputs.parameters.service-path}} not found"
           ls -la
           exit 1
         fi
-        
         # Verify Dockerfile
         if [ ! -f "./{{inputs.parameters.service-path}}/Dockerfile" ]; then
           echo "Error: Dockerfile not found in ./{{inputs.parameters.service-path}}"
           ls -la ./{{inputs.parameters.service-path}}/
           exit 1
         fi
-        
         # Login to Docker Hub
         echo "Logging into Docker Hub..."
         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-        
         # Build image
         echo "Building image for {{inputs.parameters.service-path}}..."
         docker build \
@@ -154,12 +168,10 @@ spec:
           -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}} \
           -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest \
           ./{{inputs.parameters.service-path}}
-        
         # Push images
         echo "Pushing images..."
         docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}}
         docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest
-        
         echo "Build and push completed successfully"
       securityContext:
         privileged: true
@@ -170,6 +182,61 @@ spec:
         limits:
           memory: "4Gi"
           cpu: "2000m"
+  - name: run-tests
+    inputs:
+      parameters:
+      - name: service-path
+      - name: test-file
+    container:
+      image: python:3.9
+      command: [sh, -c]
+      args:
+      - |
+        set -e
+        # Install git
+        apk add --no-cache git
+        # Clone app repository
+        echo "Cloning app repository..."
+        git clone {{workflow.parameters.app-git-repo}} /workspace
+        cd /workspace
+        # Checkout specific commit if provided
+        if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
+          echo "Checking out commit: {{workflow.parameters.git-commit}}"
+          git checkout {{workflow.parameters.git-commit}}
+        fi
+        # Verify service directory
+        if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
+          echo "Error: Service directory ./{{inputs.parameters.service-path}} not found"
+          ls -la
+          exit 1
+        fi
+        cd {{inputs.parameters.service-path}}
+        # Create and activate virtual environment
+        python -m venv venv
+        source venv/bin/activate
+        # Install test dependencies
+        if [ -f "requirements.txt" ]; then
+          pip install -r requirements.txt
+        fi
+        # Install pytest
+        pip install pytest
+        # Verify test file exists
+        if [ ! -f "tests/{{inputs.parameters.test-file}}" ]; then
+          echo "Error: Test file tests/{{inputs.parameters.test-file}} not found"
+          ls -la tests/
+          exit 1
+        fi
+        # Run tests
+        echo "Running tests for {{inputs.parameters.service-path}}..."
+        pytest tests/{{inputs.parameters.test-file}}
+        echo "Tests completed successfully"
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
   - name: update-infra
     inputs:
       parameters:
@@ -188,31 +255,26 @@ spec:
             name: git-credentials
             key: git-token
       args:
-        - |
-          set -e
-          
-          # Configure git
-          git config --global user.name "Argo Workflow"
-          git config --global user.email "argo@workflow.com"
-          
-          # Clone infra repository
-          echo "Cloning infra repository..."
-          git clone https://$GIT_USERNAME:$GIT_TOKEN@github.com/chaladak/fileprocessing-infra.git /fileprocessing-infra
-          cd /fileprocessing-infra
-          git checkout {{workflow.parameters.infra-git-branch}}
-          
-          # Extract tags from full image references
-          API_TAG=$(echo "{{inputs.parameters.api-image}}" | sed 's|.*:||')
-          PROCESSOR_TAG=$(echo "{{inputs.parameters.processor-image}}" | sed 's|.*:||')
-          NOTIFIER_TAG=$(echo "{{inputs.parameters.notifier-image}}" | sed 's|.*:||')
-          
-          # Update image tags in kustomization.yaml
-          echo "Updating image tags in kustomization.yaml..."
-          sed -i "/name: achodak\/fileprocessing-api/,/newTag:/ s|newTag: .*|newTag: $API_TAG|" deploy/overlays/dev/kustomization.yaml
-          sed -i "/name: achodak\/fileprocessing-notifier/,/newTag:/ s|newTag: .*|newTag: $NOTIFIER_TAG|" deploy/overlays/dev/kustomization.yaml
-          sed -i "/name: achodak\/fileprocessing-processor/,/newTag:/ s|newTag: .*|newTag: $PROCESSOR_TAG|" deploy/overlays/dev/kustomization.yaml
-          
-          # Commit changes
-          git add .
-          git commit -m "Update image tags to {{workflow.uid}} - triggered by commit {{workflow.parameters.git-commit}}"
-          git push origin {{workflow.parameters.infra-git-branch}}
+      - |
+        set -e
+        # Configure git
+        git config --global user.name "Argo Workflow"
+        git config --global user.email "argo@workflow.com"
+        # Clone infra repository
+        echo "Cloning infra repository..."
+        git clone https://$GIT_USERNAME:$GIT_TOKEN@github.com/chaladak/fileprocessing-infra.git /fileprocessing-infra
+        cd /fileprocessing-infra
+        git checkout {{workflow.parameters.infra-git-branch}}
+        # Extract tags from full image references
+        API_TAG=$(echo "{{inputs.parameters.api-image}}" | sed 's|.*:||')
+        PROCESSOR_TAG=$(echo "{{inputs.parameters.processor-image}}" | sed 's|.*:||')
+        NOTIFIER_TAG=$(echo "{{inputs.parameters.notifier-image}}" | sed 's|.*:||')
+        # Update image tags in kustomization.yaml
+        echo "Updating image tags in kustomization.yaml..."
+        sed -i "/name: achodak\/fileprocessing-api/,/newTag:/ s|newTag: .*|newTag: $API_TAG|" deploy/overlays/dev/kustomization.yaml
+        sed -i "/name: achodak\/fileprocessing-notifier/,/newTag:/ s|newTag: .*|newTag: $NOTIFIER_TAG|" deploy/overlays/dev/kustomization.yaml
+        sed -i "/name: achodak\/fileprocessing-processor/,/newTag:/ s|newTag: .*|newTag: $PROCESSOR_TAG|" deploy/overlays/dev/kustomization.yaml
+        # Commit changes
+        git add .
+        git commit -m "Update image tags to {{workflow.uid}} - triggered by commit {{workflow.parameters.git-commit}}"
+        git push origin {{workflow.parameters.infra-git-branch}}
