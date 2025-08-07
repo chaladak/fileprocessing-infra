@@ -56,31 +56,6 @@ spec:
             value: "fileprocessing-notifier"
           - name: tag
             value: "{{workflow.uid}}"
-    # Run tests for all services in parallel
-    #- - name: test-api-service
-    #    template: run-tests
-    #    arguments:
-    #      parameters:
-    #      - name: service-path
-    #        value: "api_service"
-    #      - name: test-file
-    #        value: "test_api.py"
-    #  - name: test-processor-service
-    #    template: run-tests
-    #    arguments:
-    #      parameters:
-    #      - name: service-path
-    #        value: "processor_service"
-    #      - name: test-file
-    #        value: "test_processor.py"
-    #  - name: test-notification-service
-    #    template: run-tests
-    #    arguments:
-    #      parameters:
-    #      - name: service-path
-    #        value: "notification_service"
-    #      - name: test-file
-    #        value: "test_notifier.py"
     # Run integration tests
     - - name: integration-tests
         template: run-integration-tests
@@ -175,74 +150,6 @@ spec:
         limits:
           memory: "4Gi"
           cpu: "2000m"
-  - name: run-tests
-    inputs:
-      parameters:
-      - name: service-path
-      - name: test-file
-    container:
-      image: python:3.9
-      command: [sh, -c]
-      env:
-      - name: PYTHONPATH
-        value: "/workspace"
-      - name: POSTGRES_USER
-        value: "test"
-      - name: POSTGRES_PASSWORD
-        value: "test"
-      - name: POSTGRES_HOST
-        value: "localhost"
-      - name: POSTGRES_DB
-        value: "test"
-      - name: RABBITMQ_URL
-        value: "amqp://guest:guest@localhost:5672/%2F"
-      - name: TESTING
-        value: "true"
-      args:
-      - |
-        set -e
-        # Install git and SQLite dependencies using apt-get (Debian-based image)
-        apt-get update && apt-get install -y git sqlite3 libsqlite3-dev
-        echo "Cloning app repository..."
-        git clone {{workflow.parameters.app-git-repo}} /workspace
-        cd /workspace
-        if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
-          echo "Checking out commit: {{workflow.parameters.git-commit}}"
-          git checkout {{workflow.parameters.git-commit}}
-        fi
-        if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
-          echo "Error: Service directory ./{{inputs.parameters.service-path}} not found"
-          ls -la
-          exit 1
-        fi
-        if [ ! -f "./{{inputs.parameters.service-path}}/tests/{{inputs.parameters.test-file}}" ]; then
-          echo "Error: Test file {{inputs.parameters.service-path}}/tests/{{inputs.parameters.test-file}} not found"
-          ls -la {{inputs.parameters.service-path}}/tests/
-          exit 1
-        fi
-        cd /workspace
-        python -m venv venv
-        . venv/bin/activate
-        # Install requirements for the service
-        if [ -f "{{inputs.parameters.service-path}}/requirements.txt" ]; then
-          pip install -r {{inputs.parameters.service-path}}/requirements.txt
-        fi
-        # Install test-specific requirements if available
-        if [ -f "{{inputs.parameters.service-path}}/tests/requirements.txt" ]; then
-          pip install -r {{inputs.parameters.service-path}}/tests/requirements.txt
-        fi
-        # Ensure pytest and dependencies are installed
-        pip install pytest pytest-mock sqlalchemy>=2.0
-        echo "Running tests for {{inputs.parameters.service-path}}..."
-        pytest {{inputs.parameters.service-path}}/tests/{{inputs.parameters.test-file}} --verbose
-        echo "Tests completed successfully"
-      resources:
-        requests:
-          memory: "1Gi"
-          cpu: "500m"
-        limits:
-          memory: "2Gi"
-          cpu: "1000m"
   - name: run-integration-tests
     container:
       image: docker:20.10.7
@@ -338,10 +245,6 @@ spec:
             echo "Integration tests FAILED"
             exit $test_exit_code
           fi
-    volumes:
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
     resources:
       requests:
         memory: "2Gi"
