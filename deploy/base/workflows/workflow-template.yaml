@@ -277,6 +277,8 @@ spec:
         echo "Cloning app repository..."
         git clone {{workflow.parameters.app-git-repo}} /workspace
         cd /workspace
+        ls -la
+        pwd
         if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
           echo "Checking out commit: {{workflow.parameters.git-commit}}"
           git checkout {{workflow.parameters.git-commit}}
