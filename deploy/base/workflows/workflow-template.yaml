@@ -25,7 +25,6 @@ spec:
   templates:
   - name: build-and-deploy
     steps:
-    # Build all services in parallel
     - - name: build-api-service
         template: docker-build
         arguments:
@@ -56,10 +55,8 @@ spec:
             value: "fileprocessing-notifier"
           - name: tag
             value: "{{workflow.uid}}"
-    # Run integration tests
     - - name: integration-tests
         template: run-integration-tests
-    # Update infra repository and trigger Argo CD sync
     - - name: update-infra-and-sync
         template: update-infra
         arguments:
@@ -70,6 +67,7 @@ spec:
             value: "{{workflow.parameters.docker-username}}/fileprocessing-processor:{{workflow.uid}}"
           - name: notifier-image
             value: "{{workflow.parameters.docker-username}}/fileprocessing-notifier:{{workflow.uid}}"
+  
   - name: docker-build
     inputs:
       parameters:
@@ -171,8 +169,6 @@ spec:
 
           echo "Cleaning up any existing containers and networks..."
           docker-compose -f ./tests/integration/docker-compose.yml down -v --remove-orphans || true
-          
-          # Remove any dangling containers that might cause issues
           docker container prune -f || true
           docker network prune -f || true
           docker volume prune -f || true
@@ -193,7 +189,6 @@ spec:
               fi
             fi
             echo "Waiting for services to be healthy... ($elapsed/$timeout seconds)"
-            docker ps
             sleep $interval
             elapsed=$((elapsed + interval))
           done
