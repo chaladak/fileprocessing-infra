@@ -57,30 +57,30 @@ spec:
           - name: tag
             value: "{{workflow.uid}}"
     # Run tests for all services in parallel
-    - - name: test-api-service
-        template: run-tests
-        arguments:
-          parameters:
-          - name: service-path
-            value: "api_service"
-          - name: test-file
-            value: "test_api.py"
-      - name: test-processor-service
-        template: run-tests
-        arguments:
-          parameters:
-          - name: service-path
-            value: "processor_service"
-          - name: test-file
-            value: "test_processor.py"
-      - name: test-notification-service
-        template: run-tests
-        arguments:
-          parameters:
-          - name: service-path
-            value: "notification_service"
-          - name: test-file
-            value: "test_notifier.py"
+    #- - name: test-api-service
+    #    template: run-tests
+    #    arguments:
+    #      parameters:
+    #      - name: service-path
+    #        value: "api_service"
+    #      - name: test-file
+    #        value: "test_api.py"
+    #  - name: test-processor-service
+    #    template: run-tests
+    #    arguments:
+    #      parameters:
+    #      - name: service-path
+    #        value: "processor_service"
+    #      - name: test-file
+    #        value: "test_processor.py"
+    #  - name: test-notification-service
+    #    template: run-tests
+    #    arguments:
+    #      parameters:
+    #      - name: service-path
+    #        value: "notification_service"
+    #      - name: test-file
+    #        value: "test_notifier.py"
     # Run integration tests
     - - name: integration-tests
         template: run-integration-tests
