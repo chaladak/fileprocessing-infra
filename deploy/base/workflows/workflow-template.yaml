@@ -148,7 +148,7 @@ spec:
         limits:
           memory: "4Gi"
           cpu: "2000m"
-- name: run-integration-tests
+  - name: run-integration-tests
     container:
       image: docker:20.10.7
       command: [sh, -c]
