@@ -148,6 +148,7 @@ spec:
         limits:
           memory: "4Gi"
           cpu: "2000m"
+
   - name: run-integration-tests
     container:
       image: docker:20.10.7
@@ -280,7 +281,7 @@ spec:
             
             # Install system dependencies
             apt-get update && apt-get install -y netcat-openbsd curl dnsutils iputils-ping
-            
+
             # Extended service readiness checks from within the test container
             echo 'Testing network connectivity from test container...'
             
@@ -352,8 +353,7 @@ spec:
               echo 'ERROR: S3_ENDPOINT contains localhost reference'  
               exit 1
             fi
-            
-            # Final connectivity test before running tests
+
             echo 'Final connectivity tests...'
             curl -f http://minio:9000/minio/health/ready || { echo 'MinIO readiness check failed'; exit 1; }
                       
