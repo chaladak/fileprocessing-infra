@@ -163,7 +163,7 @@ spec:
           
           # Create unique namespace for this workflow
           export COMPOSE_PROJECT_NAME="test-{{workflow.uid}}"
-          export NETWORK_NAME="${COMPOSE_PROJECT_NAME}_default"
+          export NETWORK_NAME="${COMPOSE_PROJECT_NAME}_app-network"
           
           echo "Using project name: $COMPOSE_PROJECT_NAME"
           
@@ -176,50 +176,78 @@ spec:
           fi
 
           echo "Performing comprehensive cleanup..."
-          # Stop any existing containers for this project
-          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans || true
           
-          # Clean up any dangling resources for this specific project
-          docker container ls -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker rm -f || true
+          # Function to force remove containers with active endpoints
+          cleanup_containers() {
+            echo "Stopping and removing all test containers..."
+            # Stop all containers with test- prefix
+            docker ps -a --filter "name=test-" -q | xargs -r docker rm -f || true
+            
+            # Remove containers by project label
+            docker container ls -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker rm -f || true
+            
+            # Remove any containers that might be using old networks
+            for network_id in $(docker network ls --filter "name=test-" -q); do
+              echo "Checking network $network_id for active endpoints..."
+              docker network inspect $network_id --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | tr ' ' '\n' | grep -v '^$' | xargs -r docker rm -f || true
+            done
+          }
           
-          # Remove networks that might conflict (be more aggressive about cleanup)
-          docker network ls --filter "name=$COMPOSE_PROJECT_NAME" -q | xargs -r docker network rm || true
-          docker network ls --filter "name=test-" -q | xargs -r docker network rm || true
+          # Function to force remove networks
+          cleanup_networks() {
+            echo "Removing test networks..."
+            # First disconnect any remaining containers
+            for network in $(docker network ls --filter "name=test-" --format "{{.Name}}"); do
+              echo "Cleaning up network: $network"
+              # Get all containers connected to this network and disconnect them
+              docker network inspect $network --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | tr ' ' '\n' | while read container; do
+                if [ ! -z "$container" ]; then
+                  echo "Disconnecting $container from $network"
+                  docker network disconnect -f $network $container 2>/dev/null || true
+                fi
+              done
+              # Now remove the network
+              docker network rm $network 2>/dev/null || true
+            done
+            
+            # Prune unused networks
+            docker network prune -f || true
+          }
+          
+          # Aggressive cleanup sequence
+          cleanup_containers
+          sleep 2
+          cleanup_networks
+          sleep 2
+          
+          # Stop any existing docker-compose services
+          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans --timeout 10 || true
           
           # Clean up volumes
-          docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm || true
+          docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm -f || true
           
-          # Additional cleanup: remove any networks that might be using conflicting subnets
-          echo "Checking for network conflicts..."
-          # List networks and their subnets to identify potential conflicts
-          docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}" || true
-          
-          # Prune unused networks to free up address space
-          docker network prune -f || true
+          # Final check and cleanup
+          echo "Checking for remaining network conflicts..."
+          docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}"
 
           echo "Starting integration test services with unique project name..."
-          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml up -d --force-recreate
+          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml up -d --force-recreate --remove-orphans
 
           echo "Waiting for services to be healthy and ready..."
           
           # Function to check service health and readiness
           wait_for_service() {
             local service_name=$1
-            local check_command=$2
             local timeout=180
             local elapsed=0
             local interval=5
             
             echo "Waiting for $service_name to be ready..."
             while [ $elapsed -lt $timeout ]; do
-              # Check if service is healthy
-              if docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps $service_name | grep -q "healthy"; then
-                echo "$service_name is healthy, checking readiness..."
-                # Run additional readiness check
-                if eval "$check_command"; then
-                  echo "$service_name is ready!"
-                  return 0
-                fi
+              # Check if container is running and healthy
+              if docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps $service_name | grep -q "Up.*healthy"; then
+                echo "$service_name is healthy!"
+                return 0
               fi
               
               echo "Waiting for $service_name... ($elapsed/$timeout seconds)"
@@ -228,21 +256,43 @@ spec:
             done
             
             echo "ERROR: $service_name failed to become ready within $timeout seconds"
+            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=20 $service_name
             return 1
           }
           
-          # Wait for MinIO
+          # Wait for services
+          wait_for_service "minio"
+          wait_for_service "rabbitmq"
+
+          # Additional readiness verification
+          echo "Performing additional service readiness checks..."
           minio_container=$(docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps -q minio)
-          wait_for_service "minio" "docker exec $minio_container mc alias set local http://localhost:9000 minioadmin minioadmin 2>/dev/null || curl -f http://localhost:9000/minio/health/ready 2>/dev/null"
-          
-          # Wait for RabbitMQ
           rabbitmq_container=$(docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps -q rabbitmq)
-          wait_for_service "rabbitmq" "docker exec $rabbitmq_container rabbitmq-diagnostics check_running && docker exec $rabbitmq_container rabbitmq-diagnostics check_local_alarms"
+          
+          # MinIO readiness
+          echo "Checking MinIO readiness..."
+          docker exec $minio_container sh -c "curl -f http://localhost:9000/minio/health/ready" || {
+            echo "MinIO not ready, checking logs..."
+            docker logs $minio_container --tail=20
+            exit 1
+          }
+          
+          # RabbitMQ readiness  
+          echo "Checking RabbitMQ readiness..."
+          docker exec $rabbitmq_container rabbitmq-diagnostics check_running && \
+          docker exec $rabbitmq_container rabbitmq-diagnostics check_local_alarms || {
+            echo "RabbitMQ not ready, checking logs..."
+            docker logs $rabbitmq_container --tail=20
+            exit 1
+          }
 
           echo "All services are ready!"
 
           # Get the actual network name that was created
-          ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | head -n1)
+          ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | grep app-network | head -n1)
+          if [ -z "$ACTUAL_NETWORK_NAME" ]; then
+            ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | head -n1)
+          fi
           echo "Using network: $ACTUAL_NETWORK_NAME"
 
           echo "Starting test container with proper network configuration..."
@@ -257,6 +307,7 @@ spec:
             -e NFS_PATH=/tmp \
             -e PYTHONPATH=/app \
             --label com.docker.compose.project=$COMPOSE_PROJECT_NAME \
+            --name "test-runner-$COMPOSE_PROJECT_NAME" \
             python:3.12-slim \
             sleep 600)
 
@@ -285,34 +336,44 @@ spec:
             # Extended service readiness checks from within the test container
             echo 'Testing network connectivity from test container...'
             
+            # Verify DNS resolution
+            echo 'DNS Resolution Tests:'
+            nslookup minio || { echo 'MinIO DNS resolution failed'; exit 1; }
+            nslookup rabbitmq || { echo 'RabbitMQ DNS resolution failed'; exit 1; }
+            
             # Test MinIO connectivity with retries
-            for i in {1..30}; do
+            echo 'Testing MinIO connectivity...'
+            for i in \$(seq 1 30); do
               if nc -z minio 9000; then
                 echo 'MinIO port 9000 is accessible'
-                if curl -f --connect-timeout 5 http://minio:9000/minio/health/live; then
+                if curl -f --connect-timeout 5 http://minio:9000/minio/health/ready; then
                   echo 'MinIO health check passed'
                   break
                 else
                   echo 'MinIO health check failed, retrying...'
                 fi
               else
-                echo 'MinIO port 9000 not accessible, retrying...'
+                echo \"MinIO port 9000 not accessible, attempt \$i/30\"
               fi
               
               if [ \$i -eq 30 ]; then
                 echo 'ERROR: MinIO not accessible after 30 attempts'
+                echo 'Network diagnostics:'
+                ip route
+                netstat -rn
                 exit 1
               fi
               sleep 2
             done
             
             # Test RabbitMQ connectivity with retries  
-            for i in {1..30}; do
+            echo 'Testing RabbitMQ connectivity...'
+            for i in \$(seq 1 30); do
               if nc -z rabbitmq 5672; then
                 echo 'RabbitMQ port 5672 is accessible'
                 break
               else
-                echo 'RabbitMQ port 5672 not accessible, retrying...'
+                echo \"RabbitMQ port 5672 not accessible, attempt \$i/30\"
               fi
               
               if [ \$i -eq 30 ]; then
@@ -355,7 +416,12 @@ spec:
             fi
 
             echo 'Final connectivity tests...'
-            curl -f http://minio:9000/minio/health/ready || { echo 'MinIO readiness check failed'; exit 1; }
+            curl -f --max-time 10 http://minio:9000/minio/health/ready || { 
+              echo 'MinIO readiness check failed'
+              echo 'Attempting to ping minio:'
+              ping -c 3 minio || true
+              exit 1
+            }
                       
             echo 'Running integration tests with debugging...'
             python -m pytest tests/integration/test_integration.py -v --tb=long -s --disable-warnings
@@ -375,6 +441,10 @@ spec:
             echo "Network details for $ACTUAL_NETWORK_NAME:"
             docker network inspect $ACTUAL_NETWORK_NAME || echo "Network inspect failed"
             
+            echo "========== CONTAINER NETWORK INFO =========="
+            docker exec $container_id ip addr show || true
+            docker exec $container_id ip route show || true
+            
             echo "========== MinIO LOGS =========="
             docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=50 minio
             
@@ -384,11 +454,15 @@ spec:
 
           echo "Cleaning up test containers..."
           docker rm -f $container_id || echo "Failed to remove test container"
-          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v || echo "Failed to stop compose services"
           
-          # Additional cleanup to prevent conflicts for future runs
-          docker network ls --filter "name=$COMPOSE_PROJECT_NAME" -q | xargs -r docker network rm || true
-          docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm || true
+          # More thorough cleanup
+          cleanup_containers
+          cleanup_networks
+          
+          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans --timeout 5 || echo "Failed to stop compose services"
+          
+          # Final cleanup to prevent conflicts for future runs
+          docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm -f || true
 
           if [ $test_exit_code -eq 0 ]; then
             echo "Integration tests PASSED"
