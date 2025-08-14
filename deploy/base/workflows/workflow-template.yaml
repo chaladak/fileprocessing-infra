@@ -7,166 +7,119 @@ spec:
   serviceAccountName: argo
   entrypoint: build-and-deploy
   imagePullSecrets:
-  - name: docker-credentials
+    - name: docker-credentials
   arguments:
     parameters:
-    - name: docker-username
-      value: "achodak"
-    - name: app-git-repo
-      value: "https://github.com/chaladak/fileprocessing-app.git"
-    - name: infra-git-repo
-      value: "https://github.com/chaladak/fileprocessing-infra.git"
-    - name: infra-git-branch
-      value: "main"
-    - name: git-commit
-      value: "latest"
-    - name: git-branch
-      value: "refs/heads/main"
-  templates:
-  - name: build-and-deploy
-    steps:
-    - - name: build-api-service
-        template: docker-build
-        arguments:
-          parameters:
-          - name: service-path
-            value: "api_service"
-          - name: image-name
-            value: "fileprocessing-api"
-          - name: tag
-            value: "{{workflow.uid}}"
-      - name: build-processor-service
-        template: docker-build
-        arguments:
-          parameters:
-          - name: service-path
-            value: "processor_service"
-          - name: image-name
-            value: "fileprocessing-processor"
-          - name: tag
-            value: "{{workflow.uid}}"
-      - name: build-notification-service
-        template: docker-build
-        arguments:
-          parameters:
-          - name: service-path
-            value: "notification_service"
-          - name: image-name
-            value: "fileprocessing-notifier"
-          - name: tag
-            value: "{{workflow.uid}}"
-    - - name: integration-tests
-        template: run-integration-tests
-    - - name: update-infra-and-sync
-        template: update-infra
-        arguments:
-          parameters:
-          - name: api-image
-            value: "{{workflow.parameters.docker-username}}/fileprocessing-api:{{workflow.uid}}"
-          - name: processor-image
-            value: "{{workflow.parameters.docker-username}}/fileprocessing-processor:{{workflow.uid}}"
-          - name: notifier-image
-            value: "{{workflow.parameters.docker-username}}/fileprocessing-notifier:{{workflow.uid}}"
-  
-  - name: docker-build
-    inputs:
-      parameters:
-      - name: service-path
-      - name: image-name
-      - name: tag
-    container:
-      image: docker:20.10.7-dind
-      command: [sh, -c]
-      env:
-      - name: DOCKER_USERNAME
-        value: "{{workflow.parameters.docker-username}}"
-      - name: DOCKER_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: docker-credentials
-            key: docker-password
-      - name: DOCKER_BUILDKIT
-        value: "1"
-      - name: BUILDKIT_PROGRESS
-        value: "plain"
-      args:
-      - |
-        set -e
-        dockerd \
-          --host=unix:///var/run/docker.sock \
-          --default-ulimit nofile=65536:65536 \
-          --max-concurrent-downloads 3 \
-          --max-concurrent-uploads 3 &
-        timeout=60
-        while ! docker info >/dev/null 2>&1; do
-          if [ $timeout -le 0 ]; then
-            echo "Docker daemon failed to start"
-            exit 1
-          fi
-          sleep 2
-          timeout=$((timeout-2))
-        done
-        echo "Docker daemon started successfully"
-        apk add --no-cache git
-        echo "Cloning app repository..."
-        git clone {{workflow.parameters.app-git-repo}} /workspace
-        cd /workspace
-        if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
-          echo "Checking out commit: {{workflow.parameters.git-commit}}"
-          git checkout {{workflow.parameters.git-commit}}
-        fi
-        if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
-          echo "Error: Service directory ./{{inputs.parameters.service-path}} not found"
-          ls -la
-          exit 1
-        fi
-        if [ ! -f "./{{inputs.parameters.service-path}}/Dockerfile" ]; then
-          echo "Error: Dockerfile not found in ./{{inputs.parameters.service-path}}"
-          ls -la ./{{inputs.parameters.service-path}}/
-          exit 1
-        fi
-        echo "Logging into Docker Hub..."
-        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-        echo "Building image for {{inputs.parameters.service-path}}..."
-        docker build \
-          --no-cache \
-          --progress=plain \
-          --build-arg BUILDKIT_INLINE_CACHE=1 \
-          -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}} \
-          -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest \
-          ./{{inputs.parameters.service-path}}
-        echo "Pushing images..."
-        docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}}
-        docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest
-        echo "Build and push completed successfully"
-      securityContext:
-        privileged: true
-      resources:
-        requests:
-          memory: "2Gi"
-          cpu: "1000m"
-        limits:
-          memory: "4Gi"
-          cpu: "2000m"
+      - name: docker-username
+        value: "achodak"
+      - name: app-git-repo
+        value: "https://github.com/chaladak/fileprocessing-app.git"
+      - name: infra-git-repo
+        value: "https://github.com/chaladak/fileprocessing-infra.git"
+      - name: infra-git-branch
+        value: "main"
+      - name: git-commit
+        value: "latest"
+      - name: git-branch
+        value: "refs/heads/main"
 
-  - name: run-integration-tests
-    container:
-      image: docker:20.10.7
-      command: [sh, -c]
-      volumeMounts:
-        - name: docker-sock
-          mountPath: /var/run/docker.sock
-      args:
+  templates:
+    - name: build-and-deploy
+      dag:
+        tasks:
+          - name: build-api-service
+            template: docker-build
+            arguments:
+              parameters:
+                - name: service-path
+                  value: "api_service"
+                - name: image-name
+                  value: "fileprocessing-api"
+                - name: tag
+                  value: "{{workflow.uid}}"
+
+          - name: build-processor-service
+            template: docker-build
+            arguments:
+              parameters:
+                - name: service-path
+                  value: "processor_service"
+                - name: image-name
+                  value: "fileprocessing-processor"
+                - name: tag
+                  value: "{{workflow.uid}}"
+
+          - name: build-notification-service
+            template: docker-build
+            arguments:
+              parameters:
+                - name: service-path
+                  value: "notification_service"
+                - name: image-name
+                  value: "fileprocessing-notifier"
+                - name: tag
+                  value: "{{workflow.uid}}"
+
+          - name: integration-tests
+            dependencies:
+              - build-api-service
+              - build-processor-service
+              - build-notification-service
+            template: run-integration-tests
+
+          - name: update-infra-and-sync
+            dependencies:
+              - integration-tests
+            template: update-infra
+            arguments:
+              parameters:
+                - name: api-image
+                  value: "{{workflow.parameters.docker-username}}/fileprocessing-api:{{workflow.uid}}"
+                - name: processor-image
+                  value: "{{workflow.parameters.docker-username}}/fileprocessing-processor:{{workflow.uid}}"
+                - name: notifier-image
+                  value: "{{workflow.parameters.docker-username}}/fileprocessing-notifier:{{workflow.uid}}"
+  
+    - name: docker-build
+      inputs:
+        parameters:
+        - name: service-path
+        - name: image-name
+        - name: tag
+      container:
+        image: docker:20.10.7-dind
+        command: [sh, -c]
+        env:
+        - name: DOCKER_USERNAME
+          value: "{{workflow.parameters.docker-username}}"
+        - name: DOCKER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: docker-credentials
+              key: docker-password
+        - name: DOCKER_BUILDKIT
+          value: "1"
+        - name: BUILDKIT_PROGRESS
+          value: "plain"
+        args:
         - |
           set -e
-          apk add --no-cache git python3 py3-pip docker-compose curl jq netcat-openbsd
-          
-          # Create unique namespace for this workflow
-          export COMPOSE_PROJECT_NAME="test-{{workflow.uid}}"
-          export NETWORK_NAME="${COMPOSE_PROJECT_NAME}_app-network"
-          
-          echo "Using project name: $COMPOSE_PROJECT_NAME"
-          
+          dockerd \
+            --host=unix:///var/run/docker.sock \
+            --default-ulimit nofile=65536:65536 \
+            --max-concurrent-downloads 3 \
+            --max-concurrent-uploads 3 &
+          timeout=60
+          while ! docker info >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "Docker daemon failed to start"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout-2))
+          done
+          echo "Docker daemon started successfully"
+          apk add --no-cache git
           echo "Cloning app repository..."
           git clone {{workflow.parameters.app-git-repo}} /workspace
           cd /workspace
@@ -174,346 +127,405 @@ spec:
             echo "Checking out commit: {{workflow.parameters.git-commit}}"
             git checkout {{workflow.parameters.git-commit}}
           fi
-
-          echo "Performing comprehensive cleanup..."
-          
-          # Function to force remove containers with active endpoints
-          cleanup_containers() {
-            echo "Stopping and removing all test containers..."
-            # Stop all containers with test- prefix
-            docker ps -a --filter "name=test-" -q | xargs -r docker rm -f || true
-            
-            # Remove containers by project label
-            docker container ls -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker rm -f || true
-            
-            # Remove any containers that might be using old networks
-            for network_id in $(docker network ls --filter "name=test-" -q); do
-              echo "Checking network $network_id for active endpoints..."
-              docker network inspect $network_id --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | tr ' ' '\n' | grep -v '^$' | xargs -r docker rm -f || true
-            done
-          }
-          
-          # Function to force remove networks
-          cleanup_networks() {
-            echo "Removing test networks..."
-            # First disconnect any remaining containers
-            for network in $(docker network ls --filter "name=test-" --format "{{.Name}}"); do
-              echo "Cleaning up network: $network"
-              # Get all containers connected to this network and disconnect them
-              docker network inspect $network --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | tr ' ' '\n' | while read container; do
-                if [ ! -z "$container" ]; then
-                  echo "Disconnecting $container from $network"
-                  docker network disconnect -f $network $container 2>/dev/null || true
-                fi
-              done
-              # Now remove the network
-              docker network rm $network 2>/dev/null || true
-            done
-            
-            # Prune unused networks
-            docker network prune -f || true
-          }
-          
-          # Aggressive cleanup sequence
-          cleanup_containers
-          sleep 2
-          cleanup_networks
-          sleep 2
-          
-          # Stop any existing docker-compose services
-          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans --timeout 10 || true
-          
-          # Clean up volumes
-          docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm -f || true
-          
-          # Final check and cleanup
-          echo "Checking for remaining network conflicts..."
-          docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}"
-
-          echo "Starting integration test services with unique project name..."
-          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml up -d --force-recreate --remove-orphans
-
-          echo "Waiting for services to be healthy and ready..."
-          
-          # Function to check service health and readiness
-          wait_for_service() {
-            local service_name=$1
-            local timeout=180
-            local elapsed=0
-            local interval=5
-            
-            echo "Waiting for $service_name to be ready..."
-            while [ $elapsed -lt $timeout ]; do
-              # Check if container is running and healthy
-              if docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps $service_name | grep -q "Up.*healthy"; then
-                echo "$service_name is healthy!"
-                return 0
-              fi
-              
-              echo "Waiting for $service_name... ($elapsed/$timeout seconds)"
-              sleep $interval
-              elapsed=$((elapsed + interval))
-            done
-            
-            echo "ERROR: $service_name failed to become ready within $timeout seconds"
-            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=20 $service_name
-            return 1
-          }
-          
-          # Wait for services
-          wait_for_service "minio"
-          wait_for_service "rabbitmq"
-
-          # Additional readiness verification
-          echo "Performing additional service readiness checks..."
-          minio_container=$(docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps -q minio)
-          rabbitmq_container=$(docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps -q rabbitmq)
-          
-          # MinIO readiness
-          echo "Checking MinIO readiness..."
-          docker exec $minio_container sh -c "curl -f http://localhost:9000/minio/health/ready" || {
-            echo "MinIO not ready, checking logs..."
-            docker logs $minio_container --tail=20
+          if [ ! -d "./{{inputs.parameters.service-path}}" ]; then
+            echo "Error: Service directory ./{{inputs.parameters.service-path}} not found"
+            ls -la
             exit 1
-          }
-          
-          # RabbitMQ readiness  
-          echo "Checking RabbitMQ readiness..."
-          docker exec $rabbitmq_container rabbitmq-diagnostics check_running && \
-          docker exec $rabbitmq_container rabbitmq-diagnostics check_local_alarms || {
-            echo "RabbitMQ not ready, checking logs..."
-            docker logs $rabbitmq_container --tail=20
-            exit 1
-          }
-
-          echo "All services are ready!"
-
-          # Get the actual network name that was created
-          ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | grep app-network | head -n1)
-          if [ -z "$ACTUAL_NETWORK_NAME" ]; then
-            ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | head -n1)
           fi
-          echo "Using network: $ACTUAL_NETWORK_NAME"
+          if [ ! -f "./{{inputs.parameters.service-path}}/Dockerfile" ]; then
+            echo "Error: Dockerfile not found in ./{{inputs.parameters.service-path}}"
+            ls -la ./{{inputs.parameters.service-path}}/
+            exit 1
+          fi
+          echo "Logging into Docker Hub..."
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+          echo "Building image for {{inputs.parameters.service-path}}..."
+          docker build \
+            --no-cache \
+            --progress=plain \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}} \
+            -t $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest \
+            ./{{inputs.parameters.service-path}}
+          echo "Pushing images..."
+          docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:{{inputs.parameters.tag}}
+          docker push $DOCKER_USERNAME/{{inputs.parameters.image-name}}:latest
+          echo "Build and push completed successfully"
+        securityContext:
+          privileged: true
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
 
-          echo "Starting test container with proper network configuration..."
-          container_id=$(docker run -d \
-            --network $ACTUAL_NETWORK_NAME \
-            -e TESTING=true \
-            -e S3_ENDPOINT=http://minio:9000 \
-            -e S3_ACCESS_KEY=minioadmin \
-            -e S3_SECRET_KEY=minioadmin \
-            -e RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F \
-            -e DATABASE_URL=sqlite:///:memory: \
-            -e NFS_PATH=/tmp \
-            -e PYTHONPATH=/app \
-            --label com.docker.compose.project=$COMPOSE_PROJECT_NAME \
-            --name "test-runner-$COMPOSE_PROJECT_NAME" \
-            python:3.12-slim \
-            sleep 600)
-
-          echo "Test container started: $container_id"
-          echo "Network: $ACTUAL_NETWORK_NAME"
-
-          # Copy application code
-          docker exec $container_id mkdir -p /app /app/tests
-          docker cp ./api_service/. $container_id:/app/api_service/
-          docker cp ./processor_service/. $container_id:/app/processor_service/
-          docker cp ./notification_service/. $container_id:/app/notification_service/
-          docker cp ./tests/integration/. $container_id:/app/tests/integration/
-
-          docker exec $container_id touch /app/api_service/__init__.py
-          docker exec $container_id touch /app/processor_service/__init__.py
-          docker exec $container_id touch /app/notification_service/__init__.py
-
-          echo "Installing dependencies and running integration tests..."
-          docker exec $container_id /bin/bash -c "
+    - name: run-integration-tests
+      container:
+        image: docker:20.10.7
+        command: [sh, -c]
+        volumeMounts:
+          - name: docker-sock
+            mountPath: /var/run/docker.sock
+        args:
+          - |
             set -e
-            cd /app
+            apk add --no-cache git python3 py3-pip docker-compose curl jq netcat-openbsd
             
-            # Install system dependencies
-            apt-get update && apt-get install -y netcat-openbsd curl dnsutils iputils-ping
+            # Create unique namespace for this workflow
+            export COMPOSE_PROJECT_NAME="test-{{workflow.uid}}"
+            export NETWORK_NAME="${COMPOSE_PROJECT_NAME}_app-network"
+            
+            echo "Using project name: $COMPOSE_PROJECT_NAME"
+            
+            echo "Cloning app repository..."
+            git clone {{workflow.parameters.app-git-repo}} /workspace
+            cd /workspace
+            if [ "{{workflow.parameters.git-commit}}" != "latest" ]; then
+              echo "Checking out commit: {{workflow.parameters.git-commit}}"
+              git checkout {{workflow.parameters.git-commit}}
+            fi
 
-            # Extended service readiness checks from within the test container
-            echo 'Testing network connectivity from test container...'
+            echo "Performing comprehensive cleanup..."
             
-            # Verify DNS resolution
-            echo 'DNS Resolution Tests:'
-            nslookup minio || { echo 'MinIO DNS resolution failed'; exit 1; }
-            nslookup rabbitmq || { echo 'RabbitMQ DNS resolution failed'; exit 1; }
+            # Function to force remove containers with active endpoints
+            cleanup_containers() {
+              echo "Stopping and removing all test containers..."
+              # Stop all containers with test- prefix
+              docker ps -a --filter "name=test-" -q | xargs -r docker rm -f || true
+              
+              # Remove containers by project label
+              docker container ls -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker rm -f || true
+              
+              # Remove any containers that might be using old networks
+              for network_id in $(docker network ls --filter "name=test-" -q); do
+                echo "Checking network $network_id for active endpoints..."
+                docker network inspect $network_id --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | tr ' ' '\n' | grep -v '^$' | xargs -r docker rm -f || true
+              done
+            }
             
-            # Test MinIO connectivity with retries
-            echo 'Testing MinIO connectivity...'
-            for i in \$(seq 1 30); do
-              if nc -z minio 9000; then
-                echo 'MinIO port 9000 is accessible'
-                if curl -f --connect-timeout 5 http://minio:9000/minio/health/ready; then
-                  echo 'MinIO health check passed'
-                  break
-                else
-                  echo 'MinIO health check failed, retrying...'
+            # Function to force remove networks
+            cleanup_networks() {
+              echo "Removing test networks..."
+              # First disconnect any remaining containers
+              for network in $(docker network ls --filter "name=test-" --format "{{.Name}}"); do
+                echo "Cleaning up network: $network"
+                # Get all containers connected to this network and disconnect them
+                docker network inspect $network --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | tr ' ' '\n' | while read container; do
+                  if [ ! -z "$container" ]; then
+                    echo "Disconnecting $container from $network"
+                    docker network disconnect -f $network $container 2>/dev/null || true
+                  fi
+                done
+                # Now remove the network
+                docker network rm $network 2>/dev/null || true
+              done
+              
+              # Prune unused networks
+              docker network prune -f || true
+            }
+            
+            # Aggressive cleanup sequence
+            cleanup_containers
+            sleep 2
+            cleanup_networks
+            sleep 2
+            
+            # Stop any existing docker-compose services
+            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans --timeout 10 || true
+            
+            # Clean up volumes
+            docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm -f || true
+            
+            # Final check and cleanup
+            echo "Checking for remaining network conflicts..."
+            docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}"
+
+            echo "Starting integration test services with unique project name..."
+            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml up -d --force-recreate --remove-orphans
+
+            echo "Waiting for services to be healthy and ready..."
+            
+            # Function to check service health and readiness
+            wait_for_service() {
+              local service_name=$1
+              local timeout=180
+              local elapsed=0
+              local interval=5
+              
+              echo "Waiting for $service_name to be ready..."
+              while [ $elapsed -lt $timeout ]; do
+                # Check if container is running and healthy
+                if docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps $service_name | grep -q "Up.*healthy"; then
+                  echo "$service_name is healthy!"
+                  return 0
                 fi
-              else
-                echo \"MinIO port 9000 not accessible, attempt \$i/30\"
-              fi
+                
+                echo "Waiting for $service_name... ($elapsed/$timeout seconds)"
+                sleep $interval
+                elapsed=$((elapsed + interval))
+              done
               
-              if [ \$i -eq 30 ]; then
-                echo 'ERROR: MinIO not accessible after 30 attempts'
-                echo 'Network diagnostics:'
-                ip route
-                netstat -rn
-                exit 1
-              fi
-              sleep 2
-            done
+              echo "ERROR: $service_name failed to become ready within $timeout seconds"
+              docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=20 $service_name
+              return 1
+            }
             
-            # Test RabbitMQ connectivity with retries  
-            echo 'Testing RabbitMQ connectivity...'
-            for i in \$(seq 1 30); do
-              if nc -z rabbitmq 5672; then
-                echo 'RabbitMQ port 5672 is accessible'
-                break
-              else
-                echo \"RabbitMQ port 5672 not accessible, attempt \$i/30\"
-              fi
-              
-              if [ \$i -eq 30 ]; then
-                echo 'ERROR: RabbitMQ not accessible after 30 attempts'
-                exit 1
-              fi
-              sleep 2
-            done
-            
-            # Install Python dependencies
-            echo 'Installing Python dependencies...'
-            pip install --no-cache-dir -r tests/integration/requirements.txt
-            pip install --no-cache-dir -r api_service/requirements.txt
-            pip install --no-cache-dir -r processor_service/requirements.txt
-            pip install --no-cache-dir -r notification_service/requirements.txt
-            
-            # Set environment variables and verify they're correct
-            export PYTHONPATH=/app:/app/api_service:/app/processor_service:/app/notification_service:\$PYTHONPATH
-            export S3_ENDPOINT=http://minio:9000
-            export S3_ACCESS_KEY=minioadmin
-            export S3_SECRET_KEY=minioadmin
-            export RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F
-            export DATABASE_URL=sqlite:///:memory:
-            export NFS_PATH=/tmp
-            export TESTING=true
-            
-            echo '========== ENVIRONMENT VARIABLES =========='
-            env | grep -E '(S3_|RABBITMQ_|DATABASE_|NFS_|TESTING)' | sort
-            echo '==========================================='
-            
-            # Verify environment variables don't contain localhost
-            if echo \"\$RABBITMQ_URL\" | grep -E 'localhost|127\.0\.0\.1|::1'; then
-              echo 'ERROR: RABBITMQ_URL contains localhost reference'
-              exit 1
-            fi
-            
-            if echo \"\$S3_ENDPOINT\" | grep -E 'localhost|127\.0\.0\.1'; then
-              echo 'ERROR: S3_ENDPOINT contains localhost reference'  
-              exit 1
-            fi
+            # Wait for services
+            wait_for_service "minio"
+            wait_for_service "rabbitmq"
 
-            echo 'Final connectivity tests...'
-            curl -f --max-time 10 http://minio:9000/minio/health/ready || { 
-              echo 'MinIO readiness check failed'
-              echo 'Attempting to ping minio:'
-              ping -c 3 minio || true
+            # Additional readiness verification
+            echo "Performing additional service readiness checks..."
+            minio_container=$(docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps -q minio)
+            rabbitmq_container=$(docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps -q rabbitmq)
+            
+            # MinIO readiness
+            echo "Checking MinIO readiness..."
+            docker exec $minio_container sh -c "curl -f http://localhost:9000/minio/health/ready" || {
+              echo "MinIO not ready, checking logs..."
+              docker logs $minio_container --tail=20
               exit 1
             }
-                      
-            echo 'Running integration tests with debugging...'
-            python -m pytest tests/integration/test_integration.py -v --tb=long -s --disable-warnings
-          "
-
-          test_exit_code=$?
-
-          # Capture logs for debugging if tests fail
-          if [ $test_exit_code -ne 0 ]; then
-            echo "========== DEBUG INFORMATION =========="
-            echo "Service status:"
-            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps
             
-            echo "========== NETWORK INFORMATION =========="
-            echo "Active networks:"
-            docker network ls
-            echo "Network details for $ACTUAL_NETWORK_NAME:"
-            docker network inspect $ACTUAL_NETWORK_NAME || echo "Network inspect failed"
-            
-            echo "========== CONTAINER NETWORK INFO =========="
-            docker exec $container_id ip addr show || true
-            docker exec $container_id ip route show || true
-            
-            echo "========== MinIO LOGS =========="
-            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=50 minio
-            
-            echo "========== RabbitMQ LOGS =========="  
-            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=50 rabbitmq
-          fi
+            # RabbitMQ readiness  
+            echo "Checking RabbitMQ readiness..."
+            docker exec $rabbitmq_container rabbitmq-diagnostics check_running && \
+            docker exec $rabbitmq_container rabbitmq-diagnostics check_local_alarms || {
+              echo "RabbitMQ not ready, checking logs..."
+              docker logs $rabbitmq_container --tail=20
+              exit 1
+            }
 
-          echo "Cleaning up test containers..."
-          docker rm -f $container_id || echo "Failed to remove test container"
-          
-          # More thorough cleanup
-          cleanup_containers
-          cleanup_networks
-          
-          docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans --timeout 5 || echo "Failed to stop compose services"
-          
-          # Final cleanup to prevent conflicts for future runs
-          docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm -f || true
+            echo "All services are ready!"
 
-          if [ $test_exit_code -eq 0 ]; then
-            echo "Integration tests PASSED"
-          else
-            echo "Integration tests FAILED"
-            exit $test_exit_code
-          fi
-    volumes:
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
-    resources:
-      requests:
-        memory: "2Gi"
-        cpu: "1000m"
-      limits:
-        memory: "4Gi"
-        cpu: "2000m"
-  - name: update-infra
-    inputs:
-      parameters:
-      - name: api-image
-      - name: processor-image
-      - name: notifier-image
-    container:
-      image: alpine/git:2.36.2
-      command: [sh, -c]
-      env:
-      - name: GIT_USERNAME
-        value: "{{workflow.parameters.docker-username}}"
-      - name: GIT_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: git-credentials
-            key: git-token
-      args:
-      - |
-        set -e
-        git config --global user.name "Argo Workflow"
-        git config --global user.email "argo@workflow.com"
-        echo "Cloning infra repository..."
-        git clone https://$GIT_USERNAME:$GIT_TOKEN@github.com/chaladak/fileprocessing-infra.git /fileprocessing-infra
-        cd /fileprocessing-infra
-        git checkout {{workflow.parameters.infra-git-branch}}
-        API_TAG=$(echo "{{inputs.parameters.api-image}}" | sed 's|.*:||')
-        PROCESSOR_TAG=$(echo "{{inputs.parameters.processor-image}}" | sed 's|.*:||')
-        NOTIFIER_TAG=$(echo "{{inputs.parameters.notifier-image}}" | sed 's|.*:||')
-        echo "Updating image tags in kustomization.yaml..."
-        sed -i "/name: achodak\/fileprocessing-api/,/newTag:/ s|newTag: .*|newTag: $API_TAG|" deploy/overlays/dev/kustomization.yaml
-        sed -i "/name: achodak\/fileprocessing-notifier/,/newTag:/ s|newTag: .*|newTag: $NOTIFIER_TAG|" deploy/overlays/dev/kustomization.yaml
-        sed -i "/name: achodak\/fileprocessing-processor/,/newTag:/ s|newTag: .*|newTag: $PROCESSOR_TAG|" deploy/overlays/dev/kustomization.yaml
-        git add .
-        git commit -m "Update image tags to {{workflow.uid}} - triggered by commit {{workflow.parameters.git-commit}}"
-        git push origin {{workflow.parameters.infra-git-branch}}
+            # Get the actual network name that was created
+            ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | grep app-network | head -n1)
+            if [ -z "$ACTUAL_NETWORK_NAME" ]; then
+              ACTUAL_NETWORK_NAME=$(docker network ls --filter "name=$COMPOSE_PROJECT_NAME" --format "{{.Name}}" | head -n1)
+            fi
+            echo "Using network: $ACTUAL_NETWORK_NAME"
+
+            echo "Starting test container with proper network configuration..."
+            container_id=$(docker run -d \
+              --network $ACTUAL_NETWORK_NAME \
+              -e TESTING=true \
+              -e S3_ENDPOINT=http://minio:9000 \
+              -e S3_ACCESS_KEY=minioadmin \
+              -e S3_SECRET_KEY=minioadmin \
+              -e RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F \
+              -e DATABASE_URL=sqlite:///:memory: \
+              -e NFS_PATH=/tmp \
+              -e PYTHONPATH=/app \
+              --label com.docker.compose.project=$COMPOSE_PROJECT_NAME \
+              --name "test-runner-$COMPOSE_PROJECT_NAME" \
+              python:3.12-slim \
+              sleep 600)
+
+            echo "Test container started: $container_id"
+            echo "Network: $ACTUAL_NETWORK_NAME"
+
+            # Copy application code
+            docker exec $container_id mkdir -p /app /app/tests
+            docker cp ./api_service/. $container_id:/app/api_service/
+            docker cp ./processor_service/. $container_id:/app/processor_service/
+            docker cp ./notification_service/. $container_id:/app/notification_service/
+            docker cp ./tests/integration/. $container_id:/app/tests/integration/
+
+            docker exec $container_id touch /app/api_service/__init__.py
+            docker exec $container_id touch /app/processor_service/__init__.py
+            docker exec $container_id touch /app/notification_service/__init__.py
+
+            echo "Installing dependencies and running integration tests..."
+            docker exec $container_id /bin/bash -c "
+              set -e
+              cd /app
+              
+              # Install system dependencies
+              apt-get update && apt-get install -y netcat-openbsd curl dnsutils iputils-ping
+
+              # Extended service readiness checks from within the test container
+              echo 'Testing network connectivity from test container...'
+              
+              # Verify DNS resolution
+              echo 'DNS Resolution Tests:'
+              nslookup minio || { echo 'MinIO DNS resolution failed'; exit 1; }
+              nslookup rabbitmq || { echo 'RabbitMQ DNS resolution failed'; exit 1; }
+              
+              # Test MinIO connectivity with retries
+              echo 'Testing MinIO connectivity...'
+              for i in \$(seq 1 30); do
+                if nc -z minio 9000; then
+                  echo 'MinIO port 9000 is accessible'
+                  if curl -f --connect-timeout 5 http://minio:9000/minio/health/ready; then
+                    echo 'MinIO health check passed'
+                    break
+                  else
+                    echo 'MinIO health check failed, retrying...'
+                  fi
+                else
+                  echo \"MinIO port 9000 not accessible, attempt \$i/30\"
+                fi
+                
+                if [ \$i -eq 30 ]; then
+                  echo 'ERROR: MinIO not accessible after 30 attempts'
+                  echo 'Network diagnostics:'
+                  ip route
+                  netstat -rn
+                  exit 1
+                fi
+                sleep 2
+              done
+              
+              # Test RabbitMQ connectivity with retries  
+              echo 'Testing RabbitMQ connectivity...'
+              for i in \$(seq 1 30); do
+                if nc -z rabbitmq 5672; then
+                  echo 'RabbitMQ port 5672 is accessible'
+                  break
+                else
+                  echo \"RabbitMQ port 5672 not accessible, attempt \$i/30\"
+                fi
+                
+                if [ \$i -eq 30 ]; then
+                  echo 'ERROR: RabbitMQ not accessible after 30 attempts'
+                  exit 1
+                fi
+                sleep 2
+              done
+              
+              # Install Python dependencies
+              echo 'Installing Python dependencies...'
+              pip install --no-cache-dir -r tests/integration/requirements.txt
+              pip install --no-cache-dir -r api_service/requirements.txt
+              pip install --no-cache-dir -r processor_service/requirements.txt
+              pip install --no-cache-dir -r notification_service/requirements.txt
+              
+              # Set environment variables and verify they're correct
+              export PYTHONPATH=/app:/app/api_service:/app/processor_service:/app/notification_service:\$PYTHONPATH
+              export S3_ENDPOINT=http://minio:9000
+              export S3_ACCESS_KEY=minioadmin
+              export S3_SECRET_KEY=minioadmin
+              export RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F
+              export DATABASE_URL=sqlite:///:memory:
+              export NFS_PATH=/tmp
+              export TESTING=true
+              
+              echo '========== ENVIRONMENT VARIABLES =========='
+              env | grep -E '(S3_|RABBITMQ_|DATABASE_|NFS_|TESTING)' | sort
+              echo '==========================================='
+              
+              # Verify environment variables don't contain localhost
+              if echo \"\$RABBITMQ_URL\" | grep -E 'localhost|127\.0\.0\.1|::1'; then
+                echo 'ERROR: RABBITMQ_URL contains localhost reference'
+                exit 1
+              fi
+              
+              if echo \"\$S3_ENDPOINT\" | grep -E 'localhost|127\.0\.0\.1'; then
+                echo 'ERROR: S3_ENDPOINT contains localhost reference'  
+                exit 1
+              fi
+
+              echo 'Final connectivity tests...'
+              curl -f --max-time 10 http://minio:9000/minio/health/ready || { 
+                echo 'MinIO readiness check failed'
+                echo 'Attempting to ping minio:'
+                ping -c 3 minio || true
+                exit 1
+              }
+                        
+              echo 'Running integration tests with debugging...'
+              python -m pytest tests/integration/test_integration.py -v --tb=long -s --disable-warnings
+            "
+
+            test_exit_code=$?
+
+            # Capture logs for debugging if tests fail
+            if [ $test_exit_code -ne 0 ]; then
+              echo "========== DEBUG INFORMATION =========="
+              echo "Service status:"
+              docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml ps
+              
+              echo "========== NETWORK INFORMATION =========="
+              echo "Active networks:"
+              docker network ls
+              echo "Network details for $ACTUAL_NETWORK_NAME:"
+              docker network inspect $ACTUAL_NETWORK_NAME || echo "Network inspect failed"
+              
+              echo "========== CONTAINER NETWORK INFO =========="
+              docker exec $container_id ip addr show || true
+              docker exec $container_id ip route show || true
+              
+              echo "========== MinIO LOGS =========="
+              docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=50 minio
+              
+              echo "========== RabbitMQ LOGS =========="  
+              docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml logs --tail=50 rabbitmq
+            fi
+
+            echo "Cleaning up test containers..."
+            docker rm -f $container_id || echo "Failed to remove test container"
+            
+            # More thorough cleanup
+            cleanup_containers
+            cleanup_networks
+            
+            docker-compose -p $COMPOSE_PROJECT_NAME -f ./tests/integration/docker-compose.yml down -v --remove-orphans --timeout 5 || echo "Failed to stop compose services"
+            
+            # Final cleanup to prevent conflicts for future runs
+            docker volume ls --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" -q | xargs -r docker volume rm -f || true
+
+            if [ $test_exit_code -eq 0 ]; then
+              echo "Integration tests PASSED"
+            else
+              echo "Integration tests FAILED"
+              exit $test_exit_code
+            fi
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1000m"
+        limits:
+          memory: "4Gi"
+          cpu: "2000m"
+    - name: update-infra
+      inputs:
+        parameters:
+        - name: api-image
+        - name: processor-image
+        - name: notifier-image
+      container:
+        image: alpine/git:2.36.2
+        command: [sh, -c]
+        env:
+        - name: GIT_USERNAME
+          value: "{{workflow.parameters.docker-username}}"
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: git-token
+        args:
+        - |
+          set -e
+          git config --global user.name "Argo Workflow"
+          git config --global user.email "argo@workflow.com"
+          echo "Cloning infra repository..."
+          git clone https://$GIT_USERNAME:$GIT_TOKEN@github.com/chaladak/fileprocessing-infra.git /fileprocessing-infra
+          cd /fileprocessing-infra
+          git checkout {{workflow.parameters.infra-git-branch}}
+          API_TAG=$(echo "{{inputs.parameters.api-image}}" | sed 's|.*:||')
+          PROCESSOR_TAG=$(echo "{{inputs.parameters.processor-image}}" | sed 's|.*:||')
+          NOTIFIER_TAG=$(echo "{{inputs.parameters.notifier-image}}" | sed 's|.*:||')
+          echo "Updating image tags in kustomization.yaml..."
+          sed -i "/name: achodak\/fileprocessing-api/,/newTag:/ s|newTag: .*|newTag: $API_TAG|" deploy/overlays/dev/kustomization.yaml
+          sed -i "/name: achodak\/fileprocessing-notifier/,/newTag:/ s|newTag: .*|newTag: $NOTIFIER_TAG|" deploy/overlays/dev/kustomization.yaml
+          sed -i "/name: achodak\/fileprocessing-processor/,/newTag:/ s|newTag: .*|newTag: $PROCESSOR_TAG|" deploy/overlays/dev/kustomization.yaml
+          git add .
+          git commit -m "Update image tags to {{workflow.uid}} - triggered by commit {{workflow.parameters.git-commit}}"
+          git push origin {{workflow.parameters.infra-git-branch}}
