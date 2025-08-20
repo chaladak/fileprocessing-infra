@@ -1,11 +1,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: fileprocessing-ingress
+  name: fileprocessing-canary-ingress
   namespace: fileprocessing-dev
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "0"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary-Deploy"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "enabled"
 spec:
   tls:
   - hosts:
@@ -57,10 +60,3 @@ spec:
             name: minio-service
             port:
               number: 9001
-      - path: /argo
-        pathType: Prefix
-        backend:
-          service:
-            name: argo-server
-            port:
-              number: 2746
