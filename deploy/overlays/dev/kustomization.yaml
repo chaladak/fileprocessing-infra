@@ -44,12 +44,6 @@ patchesJson6902:
     kind: Deployment
     name: notifier
     version: v1
-- path: patches/update-ingress-host.yaml
-  target:
-    group: networking.k8s.io
-    kind: Ingress
-    name: fileprocessing-ingress
-    version: v1
 - path: patches/update-api-resources.yaml
   target:
     group: apps
