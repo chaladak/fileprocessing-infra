@@ -4,8 +4,8 @@ metadata:
   name: fileprocessing-workflow-sensor
   namespace: argo-events
 spec:
-  serviceAccountName: argo-events-sa
-  automountServiceAccountToken: true
+  template:
+    serviceAccountName: argo-events-sa
   dependencies:
     - name: github-dep
       eventSourceName: fileprocessing-webhook
@@ -31,7 +31,7 @@ spec:
               kind: Workflow
               metadata:
                 generateName: "build-and-deploy-"
-                namespace: fileprocessing-dev  # Changed from default
+                namespace: argo  # Changed to argo namespace
               spec:
                 workflowTemplateRef:
                   name: build-and-deploy-template
