@@ -5,6 +5,7 @@ metadata:
   namespace: argo-events
 spec:
   serviceAccountName: argo-events-sa
+  automountServiceAccountToken: true
   service:
     ports:
       - port: 12000
