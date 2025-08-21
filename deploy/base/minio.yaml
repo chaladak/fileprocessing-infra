@@ -1,10 +1,33 @@
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: minio-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /mnt/minio-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - master
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: minio-pvc
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: local-storage
   resources:
     requests:
       storage: 10Gi
@@ -27,13 +50,17 @@ spec:
     spec:
       containers:
       - name: minio
-        image: asdrepo.isus.emc.com:9042/minio
+        image: asdrepo.isus.emc.com:9042/minio:latest
         args:
         - server
         - /data
+        - --console-address
+        - ":9001"
         ports:
         - containerPort: 9000
+          name: api
         - containerPort: 9001
+          name: console
         env:
         - name: MINIO_ROOT_USER
           valueFrom:
@@ -60,7 +87,13 @@ spec:
             path: /minio/health/ready
             port: 9000
           initialDelaySeconds: 10
-          periodSeconds: 20
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
       volumes:
       - name: minio-data
         persistentVolumeClaim:
