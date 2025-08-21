@@ -4,16 +4,11 @@ metadata:
   name: fileprocessing-canary-ingress
   namespace: fileprocessing-dev
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/canary: "true"
     nginx.ingress.kubernetes.io/canary-weight: "0"
     nginx.ingress.kubernetes.io/canary-by-header: "X-Canary-Deploy"
     nginx.ingress.kubernetes.io/canary-by-header-value: "enabled"
 spec:
-  tls:
-  - hosts:
-    - dev.fileprocessing.example.com
-    secretName: fileprocessing-dev-tls
   rules:
   - host: dev.fileprocessing.example.com
     http:
