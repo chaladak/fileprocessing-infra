@@ -4,3 +4,6 @@
 - op: replace
   path: /spec/tls/0/hosts/0
   value: dev.fileprocessing.example.com
+- op: replace
+  path: /spec/tls/0/secretName
+  value: fileprocessing-dev-tls

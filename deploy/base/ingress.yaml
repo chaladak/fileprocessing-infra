@@ -12,10 +12,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - fileprocessing.example.com
-    secretName: fileprocessing-tls
+    - dev.fileprocessing.example.com
+    secretName: fileprocessing-dev-tls
   rules:
-  - host: fileprocessing.example.com
+  - host: dev.fileprocessing.example.com
     http:
       paths:
       - path: /health
