@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: fileprocessing
+  name: argo-workflows
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io/background
@@ -10,15 +10,14 @@ spec:
   source:
     repoURL: https://github.com/chaladak/fileprocessing-infra.git
     targetRevision: HEAD
-    path: deploy/overlays/dev
+    path: deploy/base/workflows
   destination:
     server: https://kubernetes.default.svc
-    namespace: fileprocessing-dev
+    namespace: argo
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - RespectIgnoreDifferences=true
       - PrunePropagationPolicy=background
