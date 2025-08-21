@@ -5,7 +5,7 @@ metadata:
   namespace: fileprocessing-dev
   annotations:
     nginx.ingress.kubernetes.io/canary: "true"
-    nginx.ingress.kubernetes.io/canary-weight: "0"
+    nginx.ingress.kubernetes.io/canary-weight: "50"
     nginx.ingress.kubernetes.io/canary-by-header: "X-Canary-Deploy"
     nginx.ingress.kubernetes.io/canary-by-header-value: "enabled"
 spec:
