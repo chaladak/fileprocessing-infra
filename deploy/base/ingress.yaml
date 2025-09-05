@@ -3,11 +3,11 @@ kind: Ingress
 metadata:
   name: fileprocessing-canary-ingress
   namespace: fileprocessing-dev
-  annotations:
-    nginx.ingress.kubernetes.io/canary: "true"
-    nginx.ingress.kubernetes.io/canary-weight: "0"
-    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary-Deploy"
-    nginx.ingress.kubernetes.io/canary-by-header-value: "enabled"
+#  annotations:
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "0"
+#    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary-Deploy"
+#    nginx.ingress.kubernetes.io/canary-by-header-value: "enabled"
 spec:
   rules:
   - host: fileprocessing.example.com
