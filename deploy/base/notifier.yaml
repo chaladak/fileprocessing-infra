@@ -15,6 +15,8 @@ spec:
       labels:
         app: notifier
     spec:
+      imagePullSecrets:
+      - name: dockerhub-credentials
       containers:
       - name: notifier
         image: achodak/fileprocessing-notifier:latest
