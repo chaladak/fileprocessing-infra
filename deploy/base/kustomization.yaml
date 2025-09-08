@@ -13,6 +13,8 @@ resources:
 - processor.yaml
 - notifier.yaml
 - ingress.yaml
+- storage.yaml
+- workflows/workflow.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: fileprocessing

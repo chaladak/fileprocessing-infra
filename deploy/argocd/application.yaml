@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/chaladak/fileprocessing-infra.git
     targetRevision: HEAD
-    path: deploy/overlays/dev
+    path: deploy/base
   destination:
     server: https://kubernetes.default.svc
     namespace: fileprocessing-dev
