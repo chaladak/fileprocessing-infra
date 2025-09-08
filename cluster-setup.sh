@@ -83,33 +83,6 @@ subjects:
   namespace: argo
 EOF
 
-
-echo "=== Setting up Argo Events ==="
-kubectl create namespace argo-events || true
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/manifests/namespace-install.yaml -n argo-events
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/examples/eventbus/native.yaml -n argo-events
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/manifests/install-validating-webhook.yaml -n argo-events
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/examples/rbac/sensor-rbac.yaml -n argo-events
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-events/stable/examples/rbac/workflow-rbac.yaml -n argo-events
-
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: argo-events-sa
-  namespace: argo-events
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: argo-events-workflow-access
-rules:
-- apiGroups: ["argoproj.io"]
-  resources: ["workflowtemplates","workflows"]
-  verbs: ["get","list","create","update","patch","delete"]
-EOF
-
-
 echo "=== Deploying fileprocessing-infra via ArgoCD ==="
 kubectl apply -f fileprocessing-infra/deploy/argocd/ -n argocd
 
