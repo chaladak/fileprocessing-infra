@@ -22,7 +22,7 @@ resources:
 - notifier.yaml
 - ingress.yaml
 - storage.yaml
-- workflows/workflow.yaml
+- workflows/workflow-template.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: fileprocessing
