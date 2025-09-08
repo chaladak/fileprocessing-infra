@@ -3,7 +3,7 @@ kind: StorageClass
 metadata:
   name: nfs-storage-class
 provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: Immediate
 ---
 apiVersion: v1
 kind: PersistentVolume
