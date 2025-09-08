@@ -11,14 +11,6 @@ spec:
   storageClassName: local-storage
   hostPath:
     path: /mnt/minio-data
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - master
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
