@@ -12,14 +12,14 @@ resources:
   - minio.yaml
   - ingress.yaml
 
-# Use 'labels' instead of deprecated 'commonLabels'
+# Add labels to all resources
 labels:
   - pairs:
       app.kubernetes.io/name: fileprocessing
       app.kubernetes.io/component: infrastructure
       app.kubernetes.io/part-of: fileprocessing-system
 
-# Use 'patches' instead of deprecated 'patchesStrategicMerge'
+# Use 'patches' with correct resource targets
 patches:
   - patch: |-
       apiVersion: v1
@@ -36,7 +36,6 @@ patches:
       apiVersion: storage.k8s.io/v1
       kind: StorageClass
       metadata:
-        name: local-storage
         annotations:
           argocd.argoproj.io/sync-wave: "-1"
     target:
@@ -47,8 +46,6 @@ patches:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: fileprocessing-secrets
-        namespace: fileprocessing-dev
         annotations:
           argocd.argoproj.io/sync-wave: "-1"
     target:
@@ -59,55 +56,72 @@ patches:
       apiVersion: v1
       kind: ConfigMap
       metadata:
-        name: fileprocessing-config
-        namespace: fileprocessing-dev
         annotations:
           argocd.argoproj.io/sync-wave: "-1"
     target:
       kind: ConfigMap
       name: fileprocessing-config
   
+  # Minio PV
   - patch: |-
       apiVersion: v1
       kind: PersistentVolume
       metadata:
-        name: fileprocessing-pv-new
+        annotations:
+          argocd.argoproj.io/sync-wave: "0"
+    target:
+      kind: PersistentVolume
+      name: minio-pv
+  
+  # Other PVs (adjust name as needed)
+  - patch: |-
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
         annotations:
           argocd.argoproj.io/sync-wave: "0"
     target:
       kind: PersistentVolume
       name: fileprocessing-pv-new
   
+  # Minio PVC
+  - patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        annotations:
+          argocd.argoproj.io/sync-wave: "0"
+    target:
+      kind: PersistentVolumeClaim
+      name: minio-pvc
+  
+  # Postgres Deployment
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
       metadata:
-        name: postgres
-        namespace: fileprocessing-dev
         annotations:
           argocd.argoproj.io/sync-wave: "1"
     target:
       kind: Deployment
       name: postgres
   
+  # RabbitMQ Deployment
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
       metadata:
-        name: rabbitmq
-        namespace: fileprocessing-dev
         annotations:
           argocd.argoproj.io/sync-wave: "1"
     target:
       kind: Deployment
       name: rabbitmq
   
+  # Minio Deployment (correct name)
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
       metadata:
-        name: minio
-        namespace: fileprocessing-dev
         annotations:
           argocd.argoproj.io/sync-wave: "1"
     target:
