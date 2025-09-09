@@ -5,4 +5,5 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: Immediate
+volumeBindingMode: WaitForFirstConsumer
+
