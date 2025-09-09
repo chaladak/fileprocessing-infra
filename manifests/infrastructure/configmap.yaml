@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: fileprocessing-config
   namespace: fileprocessing-dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 data:
   postgres-host: "postgres-service"
   postgres-db: "fileprocessing"

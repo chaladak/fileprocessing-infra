@@ -4,6 +4,8 @@ metadata:
   name: fileprocessing-pv-new
   labels:
     type: nfs
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   capacity:
     storage: 10Gi
