@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/chaladak/fileprocessing-infra.git
-    targetRevision: main
+    targetRevision: HEAD
     path: manifests/processor
   destination:
     server: https://kubernetes.default.svc

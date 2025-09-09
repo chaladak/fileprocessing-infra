@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/chaladak/fileprocessing-infra.git
-    targetRevision: main
+    targetRevision: HEAD
     path: manifests/infrastructure
   destination:
     server: https://kubernetes.default.svc
@@ -28,12 +28,6 @@ spec:
         factor: 2
         maxDuration: 3m
   # This application must deploy first
-  ignoreDifferences:
-    - group: argoproj.io
-      kind: Application
-      jsonPointers:
-        - /status
-        - /metadata/finalizers
   syncWaves:
     - order: 0
   
