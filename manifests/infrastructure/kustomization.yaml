@@ -19,7 +19,7 @@ labels:
       app.kubernetes.io/component: infrastructure
       app.kubernetes.io/part-of: fileprocessing-system
 
-# Use 'patches' with correct resource targets
+# Only patch resources that definitely exist and need sync waves
 patches:
   - patch: |-
       apiVersion: v1
@@ -31,16 +31,6 @@ patches:
     target:
       kind: Namespace
       name: fileprocessing-dev
-  
-  - patch: |-
-      apiVersion: storage.k8s.io/v1
-      kind: StorageClass
-      metadata:
-        annotations:
-          argocd.argoproj.io/sync-wave: "-1"
-    target:
-      kind: StorageClass
-      name: local-storage
   
   - patch: |-
       apiVersion: v1
@@ -61,8 +51,8 @@ patches:
     target:
       kind: ConfigMap
       name: fileprocessing-config
-  
-  # Minio PV
+
+# Minio PV
   - patch: |-
       apiVersion: v1
       kind: PersistentVolume
