@@ -3,6 +3,8 @@ kind: WorkflowTemplate
 metadata:
   name: build-and-deploy-template
   namespace: argo
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   serviceAccountName: argo
   entrypoint: build-and-deploy
