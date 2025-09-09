@@ -2,13 +2,17 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: local-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: Immediate  # Changed from WaitForFirstConsumer
 
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: nfs-storage-class
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: Immediate  # Changed from WaitForFirstConsumer
