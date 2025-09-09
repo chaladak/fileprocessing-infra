@@ -11,75 +11,105 @@ resources:
   - rabbitmq.yaml
   - minio.yaml
   - ingress.yaml
-  - configmap.yaml
-  - ingress.yaml
 
-# Add common labels
-commonLabels:
-  app.kubernetes.io/name: fileprocessing
-  app.kubernetes.io/component: infrastructure
-  app.kubernetes.io/part-of: fileprocessing-system
+# Use 'labels' instead of deprecated 'commonLabels'
+labels:
+  - pairs:
+      app.kubernetes.io/name: fileprocessing
+      app.kubernetes.io/component: infrastructure
+      app.kubernetes.io/part-of: fileprocessing-system
 
-# Add sync wave annotations for proper deployment order
-patchesStrategicMerge:
-  - |-
-    apiVersion: v1
-    kind: Namespace
-    metadata:
+# Use 'patches' instead of deprecated 'patchesStrategicMerge'
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: fileprocessing-dev
+        annotations:
+          argocd.argoproj.io/sync-wave: "-2"
+    target:
+      kind: Namespace
       name: fileprocessing-dev
-      annotations:
-        argocd.argoproj.io/sync-wave: "-2"
-  - |-
-    apiVersion: storage.k8s.io/v1
-    kind: StorageClass
-    metadata:
+  
+  - patch: |-
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: local-storage
+        annotations:
+          argocd.argoproj.io/sync-wave: "-1"
+    target:
+      kind: StorageClass
       name: local-storage
-      annotations:
-        argocd.argoproj.io/sync-wave: "-1"
-  - |-
-    apiVersion: v1
-    kind: Secret
-    metadata:
+  
+  - patch: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: fileprocessing-secrets
+        namespace: fileprocessing-dev
+        annotations:
+          argocd.argoproj.io/sync-wave: "-1"
+    target:
+      kind: Secret
       name: fileprocessing-secrets
-      namespace: fileprocessing-dev
-      annotations:
-        argocd.argoproj.io/sync-wave: "-1"
-  - |-
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
+  
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: fileprocessing-config
+        namespace: fileprocessing-dev
+        annotations:
+          argocd.argoproj.io/sync-wave: "-1"
+    target:
+      kind: ConfigMap
       name: fileprocessing-config
-      namespace: fileprocessing-dev
-      annotations:
-        argocd.argoproj.io/sync-wave: "-1"
-  - |-
-    apiVersion: v1
-    kind: PersistentVolume
-    metadata:
+  
+  - patch: |-
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: fileprocessing-pv-new
+        annotations:
+          argocd.argoproj.io/sync-wave: "0"
+    target:
+      kind: PersistentVolume
       name: fileprocessing-pv-new
-      annotations:
-        argocd.argoproj.io/sync-wave: "0"
-  - |-
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
+  
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: postgres
+        namespace: fileprocessing-dev
+        annotations:
+          argocd.argoproj.io/sync-wave: "1"
+    target:
+      kind: Deployment
       name: postgres
-      namespace: fileprocessing-dev
-      annotations:
-        argocd.argoproj.io/sync-wave: "1"
-  - |-
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
+  
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: rabbitmq
+        namespace: fileprocessing-dev
+        annotations:
+          argocd.argoproj.io/sync-wave: "1"
+    target:
+      kind: Deployment
       name: rabbitmq
-      namespace: fileprocessing-dev
-      annotations:
-        argocd.argoproj.io/sync-wave: "1"
-  - |-
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
+  
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: minio
+        namespace: fileprocessing-dev
+        annotations:
+          argocd.argoproj.io/sync-wave: "1"
+    target:
+      kind: Deployment
       name: minio
-      namespace: fileprocessing-dev
-      annotations:
-        argocd.argoproj.io/sync-wave: "1"
