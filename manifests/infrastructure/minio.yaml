@@ -43,12 +43,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  nodeSelector:
-    kubernetes.io/hostname: master
-  tolerations:
-  - key: "node-role.kubernetes.io/master"
-    operator: "Exists"
-    effect: "NoSchedule"
   replicas: 1
   selector:
     matchLabels:
@@ -58,6 +52,12 @@ spec:
       labels:
         app: minio
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: master
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
       containers:
       - name: minio
         image: asdrepo.isus.emc.com:9042/minio:latest
