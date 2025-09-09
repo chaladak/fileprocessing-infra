@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chaladak/fileprocessing-infra.git
+    targetRevision: main
+    path: manifests/api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fileprocessing-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false  # Namespace created by infrastructure
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  # Wait for infrastructure to be ready
+  syncWaves:
+    - order: 1
