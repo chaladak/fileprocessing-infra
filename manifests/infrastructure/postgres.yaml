@@ -3,7 +3,7 @@ kind: PersistentVolume
 metadata:
   name: postgres-pv
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   capacity:
     storage: 5Gi

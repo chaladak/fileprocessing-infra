@@ -18,4 +18,3 @@ labels:
       app.kubernetes.io/name: fileprocessing
       app.kubernetes.io/component: infrastructure
       app.kubernetes.io/part-of: fileprocessing-system
-
