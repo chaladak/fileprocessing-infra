@@ -1,8 +1,11 @@
+# argocd/apps/infrastructure-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: infrastructure
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # Deploy first
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -13,7 +16,7 @@ spec:
     path: manifests/infrastructure
   destination:
     server: https://kubernetes.default.svc
-    namespace: fileprocessing-dev  # Using your existing namespace
+    namespace: fileprocessing-dev
   syncPolicy:
     automated:
       prune: true
@@ -27,7 +30,3 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
-  # This application must deploy first
-  syncWaves:
-    - order: 0
-  

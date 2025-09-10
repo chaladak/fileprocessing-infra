@@ -1,8 +1,11 @@
+# argocd/apps/api-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: api
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy after infrastructure
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -20,12 +23,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=false  # Namespace created by infrastructure
+      - ApplyOutOfSyncOnly=true
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
         maxDuration: 3m
-  # Wait for infrastructure to be ready
-  syncWaves:
-    - order: 1

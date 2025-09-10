@@ -4,7 +4,7 @@ metadata:
   name: fileprocessing-app-of-apps
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io/background
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
@@ -13,7 +13,7 @@ spec:
     path: argocd/apps
   destination:
     server: https://kubernetes.default.svc
-    namespace: fileprocessing-dev
+    namespace: argocd  # Deploy apps to argocd namespace, not fileprocessing-dev
   syncPolicy:
     automated:
       prune: true
