@@ -38,6 +38,10 @@ spec:
   resources:
     requests:
       storage: 5Gi
+  selector:
+    matchLabels:
+      app: postgres
+      type: local-storage
 ---
 apiVersion: apps/v1
 kind: Deployment
