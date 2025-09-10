@@ -100,7 +100,7 @@ spec:
       volumes:
       - name: shared-data
         persistentVolumeClaim:
-          claimName: nfs-pvc-new
+          claimName: nfs-pvc
 ---
 apiVersion: v1
 kind: Service
