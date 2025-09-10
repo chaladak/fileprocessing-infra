@@ -11,4 +11,4 @@ commonLabels:
 
 images:
   - name: achodak/fileprocessing-api
-    newTag: latest
+    newTag: d67cf15b-64ca-4038-9e40-31bacb579718
