@@ -61,6 +61,8 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: master
       containers:
       - name: postgres
         image: asdrepo.isus.emc.com:9042/postgres:13
