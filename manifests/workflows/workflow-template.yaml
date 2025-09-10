@@ -527,7 +527,7 @@ spec:
           echo "Updating image tags in kustomization.yaml..."
           sed -i "/name: achodak\/fileprocessing-api/,/newTag:/ s|newTag: .*|newTag: $API_TAG|" manifests/api/kustomization.yaml
           sed -i "/name: achodak\/fileprocessing-notifier/,/newTag:/ s|newTag: .*|newTag: $NOTIFIER_TAG|" manifests/notifier/kustomization.yaml
-          sed -i "/name: achodak\/fileprocessing-processor/,/newTag:/ s|newTag: .*|newTag: $PROCESSOR_TAG|" mnifests/processor/kustomization.yaml
+          sed -i "/name: achodak\/fileprocessing-processor/,/newTag:/ s|newTag: .*|newTag: $PROCESSOR_TAG|" manifests/processor/kustomization.yaml
           git add .
           git commit -m "Update image tags to {{workflow.uid}} - triggered by commit {{workflow.parameters.git-commit}}"
           git push origin {{workflow.parameters.infra-git-branch}}
