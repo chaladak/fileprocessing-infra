@@ -1,8 +1,9 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: fileprocessing-pv-new
+  name: nfs-pv
   labels:
+    app: shared-storage
     type: nfs
   annotations:
     argocd.argoproj.io/sync-wave: "0"
@@ -16,11 +17,12 @@ spec:
   nfs:
     path: /srv/nfs/share
     server: 100.80.77.189
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nfs-pvc-new
+  name: nfs-pvc
   namespace: fileprocessing
 spec:
   accessModes:
@@ -31,4 +33,5 @@ spec:
   storageClassName: nfs-storage-class
   selector:
     matchLabels:
+      app: shared-storage
       type: nfs
