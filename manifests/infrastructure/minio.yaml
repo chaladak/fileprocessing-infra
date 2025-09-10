@@ -38,10 +38,6 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  selector:
-    matchLabels:
-      app: minio
-      type: local-storage
 ---
 apiVersion: apps/v1
 kind: Deployment
