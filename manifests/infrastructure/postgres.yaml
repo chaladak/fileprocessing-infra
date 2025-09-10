@@ -40,6 +40,8 @@ metadata:
   name: postgres
   labels:
     app: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: 1
   selector:
