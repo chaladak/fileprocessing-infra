@@ -15,7 +15,7 @@ spec:
     path: manifests/notifier
   destination:
     server: https://kubernetes.default.svc
-    namespace: fileprocessing-dev
+    namespace: fileprocessing
   syncPolicy:
     automated:
       prune: true

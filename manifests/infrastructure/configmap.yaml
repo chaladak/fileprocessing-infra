@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: fileprocessing-config
-  namespace: fileprocessing-dev
+  namespace: fileprocessing
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 data:

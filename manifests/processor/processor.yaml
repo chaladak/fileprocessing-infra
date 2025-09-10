@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: processor
-  namespace: fileprocessing-dev
+  namespace: fileprocessing
   labels:
     app: processor
 spec:
@@ -19,7 +19,7 @@ spec:
       - name: dockerhub-credentials
       containers:
       - name: processor
-        image: achodak/fileprocessing-processor:latest  # This will be updated by CI
+        image: achodak/fileprocessing-processor:latest
         env:
         - name: POSTGRES_HOST
           valueFrom:

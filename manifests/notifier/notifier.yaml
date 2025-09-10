@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notifier
-  namespace: fileprocessing-dev
+  namespace: fileprocessing
   labels:
     app: notifier
 spec:

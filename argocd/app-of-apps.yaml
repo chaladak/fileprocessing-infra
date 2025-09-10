@@ -13,7 +13,7 @@ spec:
     path: argocd/apps
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd  # Deploy apps to argocd namespace, not fileprocessing-dev
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true

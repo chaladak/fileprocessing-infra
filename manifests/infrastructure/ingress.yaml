@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fileprocessing-canary-ingress
-  namespace: fileprocessing-dev
+  namespace: fileprocessing
   annotations:
     nginx.ingress.kubernetes.io/canary: "true"
     nginx.ingress.kubernetes.io/canary-weight: "100"  # Start with 0% traffic
@@ -62,7 +62,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fileprocessing-ingress
-  namespace: fileprocessing-dev
+  namespace: fileprocessing
 spec:
   rules:
   - host: fileprocessing.example.com

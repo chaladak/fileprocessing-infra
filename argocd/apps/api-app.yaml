@@ -16,7 +16,7 @@ spec:
     path: manifests/api
   destination:
     server: https://kubernetes.default.svc
-    namespace: fileprocessing-dev
+    namespace: fileprocessing
   syncPolicy:
     automated:
       prune: true
