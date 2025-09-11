@@ -1,19 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: processor
+  name: processor-v2
   namespace: fileprocessing
   labels:
     app: processor
+    version: v2
+    managed-by: argocd
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: processor
+      version: v2
   template:
     metadata:
       labels:
         app: processor
+        version: v2
     spec:
       imagePullSecrets:
       - name: dockerhub-credentials

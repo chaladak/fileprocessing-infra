@@ -1,66 +1,6 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: fileprocessing-canary-ingress
-  namespace: fileprocessing
-  annotations:
-    nginx.ingress.kubernetes.io/canary: "true"
-    nginx.ingress.kubernetes.io/canary-weight: "100"  # Start with 0% traffic
-    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary-Deploy"
-    nginx.ingress.kubernetes.io/canary-by-header-value: "enabled"
-spec:
-  rules:
-  - host: fileprocessing.example.com
-    http:
-      paths:
-      - path: /health
-        pathType: Prefix
-        backend:
-          service:
-            name: api-service
-            port:
-              number: 80
-      - path: /upload
-        pathType: Prefix
-        backend:
-          service:
-            name: api-service
-            port:
-              number: 80
-      - path: /status
-        pathType: Prefix
-        backend:
-          service:
-            name: api-service
-            port:
-              number: 80
-      - path: /docs
-        pathType: Prefix
-        backend:
-          service:
-            name: api-service
-            port:
-              number: 80
-      - path: /notifications
-        pathType: Prefix
-        backend:
-          service:
-            name: notifier-service
-            port:
-              number: 80
-      - path: /minio
-        pathType: Prefix
-        backend:
-          service:
-            name: minio-service
-            port:
-              number: 9000
-
----
-
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
   name: fileprocessing-ingress
   namespace: fileprocessing
 spec:

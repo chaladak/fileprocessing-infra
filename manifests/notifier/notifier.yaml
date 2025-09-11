@@ -1,26 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: notifier
+  name: notifier-v2
   namespace: fileprocessing
   labels:
     app: notifier
+    version: v2
+    managed-by: argocd
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: notifier
+      version: v2
   template:
     metadata:
       labels:
         app: notifier
+        version: v2
     spec:
       imagePullSecrets:
       - name: dockerhub-credentials
       containers:
       - name: notifier
         image: achodak/fileprocessing-notifier:latest
-        # Using the CMD in Dockerfile: ["python", "notifier.py"]
         env:
         - name: POSTGRES_HOST
           valueFrom:
@@ -66,14 +69,18 @@ spec:
           requests:
             cpu: "100m"
             memory: "128Mi"
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: notifier-service
+  namespace: fileprocessing
 spec:
   selector:
     app: notifier
+    deployment-method: argocd
+    version: v2
   ports:
   - port: 80
     targetPort: 8000
